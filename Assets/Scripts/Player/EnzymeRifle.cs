@@ -128,13 +128,19 @@ namespace Leukocyte
             if (Physics.Raycast(origin, dir, out var hit, range, ~0, QueryTriggerInteraction.Ignore))
             {
                 end = hit.point;
-                var germ = hit.collider.GetComponentInParent<Germ>();
-                if (germ && !germ.Hp.IsDead)
+                var victim = hit.collider.GetComponentInParent<Combatant>();
+                if (victim && victim.team != Team.Immune && victim.Alive)
                 {
-                    bool kill = germ.Hp.Current <= damage;
-                    germ.Hp.Damage(damage);
-                    if (GameManager.I && GameManager.I.Hud) GameManager.I.Hud.ShowHitMarker(kill);
-                    Fader.Burst(hit.point, germ.BloodColor, 2, 0.12f, 3f);
+                    bool kill = victim.Hp.Current <= damage;
+                    victim.Hp.Damage(damage);
+                    var gm = GameManager.I;
+                    if (gm)
+                    {
+                        if (kill) gm.Kills++;
+                        if (gm.Hud) gm.Hud.ShowHitMarker(kill);
+                    }
+                    var germ = victim.GetComponent<Germ>();
+                    Fader.Burst(hit.point, germ ? germ.BloodColor : Color.white, 2, 0.12f, 3f);
                 }
                 else
                 {

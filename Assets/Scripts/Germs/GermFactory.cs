@@ -55,6 +55,9 @@ namespace Leukocyte
             go.transform.position = position;
             go.transform.rotation = Quaternion.LookRotation(Vector3.back);
             go.AddComponent<Health>().SetMax(hp);
+            var c = go.AddComponent<Combatant>();
+            c.team = Team.Infection;
+            c.aimHeight = 0f;
             return go.transform;
         }
 

@@ -26,23 +26,21 @@ namespace Leukocyte
         {
             biteTimer -= dt;
 
-            bool chasing = TryGetPlayerTarget(aggroRange, out var target);
-            if (!chasing)
+            if (!TryGetTarget(out var target, out var aim))
             {
-                var node = NearestNode();
-                if (!node) return;
-                target = node.transform.position;
+                GoToObjective(dt);
+                return;
             }
 
-            Vector3 to = target - transform.position;
+            Vector3 to = aim - transform.position;
             float dist = to.magnitude;
             Vector3 dir = to / Mathf.Max(dist, 0.001f);
 
-            if (chasing && dist < biteRange)
+            if (dist < biteRange)
             {
                 if (biteTimer <= 0f)
                 {
-                    Player.Hp.Damage(biteDamage);
+                    target.Hp.Damage(biteDamage);
                     biteTimer = biteCooldown;
                 }
                 Steer(dir, 1f, dt);

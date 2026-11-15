@@ -103,10 +103,12 @@ namespace Leukocyte
             pitch = Mathf.Clamp(pitch - degrees, -85f, 85f);
         }
 
-        public void Respawn(Vector3 position)
+        public void Respawn(Vector3 position) => Respawn(position, Quaternion.identity);
+
+        public void Respawn(Vector3 position, Quaternion facing)
         {
             cc.enabled = false;
-            transform.SetPositionAndRotation(position, Quaternion.identity);
+            transform.SetPositionAndRotation(position, facing);
             cc.enabled = true;
             pitch = 0f;
             verticalSpeed = 0f;

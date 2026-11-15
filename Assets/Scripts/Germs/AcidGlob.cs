@@ -30,14 +30,14 @@ namespace Leukocyte
             Vector3 step = velocity * dt;
             if (Physics.SphereCast(transform.position, 0.2f, velocity.normalized, out var hit, step.magnitude, ~0, QueryTriggerInteraction.Ignore))
             {
-                if (hit.collider.GetComponentInParent<Germ>())
+                var victim = hit.collider.GetComponentInParent<Combatant>();
+                if (victim && victim.team == Team.Infection)
                 {
                     transform.position += step; // pass through other germs
                 }
                 else
                 {
-                    var pc = hit.collider.GetComponent<PlayerController>();
-                    if (pc) pc.Hp.Damage(damage);
+                    if (victim) victim.Hp.Damage(damage);
                     Fader.Burst(hit.point, GlobColor, 5, 0.15f, 3f);
                     Destroy(gameObject);
                     return;

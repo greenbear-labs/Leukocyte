@@ -2,7 +2,10 @@
 
 A first-person shooter where you play a humanoid white blood cell in the Host's Immune Corps, defending a living body from monstrous germs. Built in Unity.
 
-This branch holds the **greybox prototype**: one level (the Femoral Artery), one weapon, two germ types and a five-wave defense. Everything is built from code at runtime out of Unity primitives, so there are no art assets yet.
+This branch holds the **greybox prototype**. A main menu offers two modes, and everything is built from code at runtime out of Unity primitives, so there are no art assets yet.
+
+- **Artery Defense:** solo. Hold the femoral artery against five escalating germ waves.
+- **Tissue War:** a squad battle on the Alveoli Front, a wide lung battlefield. Six outposts start split 3 and 3 between the Immune Corps and the infection. Capture them with your AI troopers and drain the enemy's reinforcements.
 
 ## Running it
 
@@ -25,9 +28,20 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 | Fire Enzyme Rifle | Left mouse |
 | Reload | R |
 | Release mouse | Esc (click to recapture) |
-| Redeploy after win/loss | Enter |
+| Choose spawn point (Tissue War, while down) | 1-9 |
+| Main menu (paused or after a match) | M |
+| Play again after win/loss | Enter |
 
-## How a match works
+## Tissue War rules
+
+- Each side starts with 150 reinforcement tickets. Every death costs its side one ticket.
+- Stand in an outpost's ring to capture it. More troops capture faster (up to 3x). Nothing moves while both sides are inside. A post goes neutral first, then flips.
+- The side holding more outposts drains the other side's tickets every 3 seconds. Holding all six drains them fast.
+- A side loses when its tickets reach 0.
+- Up to 11 allied troopers and 18 germs fight at once. They push the nearest outposts they don't hold, and about a quarter of them stay back to defend.
+- When you die, pick your HQ or any outpost you hold that isn't contested. By default you spawn at the front line.
+
+## Artery Defense rules
 
 - Germs pour in from the **Wound Breach** at the far end of the artery.
 - They hunt you when you're close; otherwise they float toward the three pink **Tissue Nodes**. Every germ that touches a node drains **Host Vitals**.
@@ -45,10 +59,11 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 
 ```
 Assets/Scripts/
-  Core/     GameBootstrap, LevelBuilder, GameManager, WaveManager, TissueNode, Health, helpers
+  Core/     GameBootstrap (main menu), LevelBuilder (artery map), Combatant (teams), GameManager, WaveManager, TissueNode, Health, helpers
   Player/   PlayerController (CharacterController FPS), EnzymeRifle (hitscan weapon)
   Germs/    Germ base AI, Swarmer, Spitter, AcidGlob, GermFactory (greybox models)
-  UI/       Hud (IMGUI crosshair, bars, wave info, end screens)
+  Conquest/ ConquestBuilder (Alveoli Front map), ConquestManager (tickets, spawns, objectives), Outpost, ImmuneBot (allied AI)
+  UI/       HudBase plus the Artery Defense and Tissue War HUDs (IMGUI)
   Editor/   First-open scene setup and the Leukocyte menu
 ```
 

@@ -3,7 +3,7 @@ using UnityEngine.Rendering;
 
 namespace Leukocyte
 {
-    /// <summary>Builds the Femoral Artery greybox: vessel, cover, tissue nodes, breach, player and managers.
+    /// <summary>Artery Defense map. Builds the Femoral Artery greybox: vessel, cover, tissue nodes, breach, player and managers.
     /// The artery runs along +Z. The player starts at the Lymph Checkpoint (low Z) and germs pour in
     /// from the Wound Breach at the far end (high Z).</summary>
     public static class LevelBuilder
@@ -22,12 +22,10 @@ namespace Leukocyte
 
         public static GameObject Build()
         {
-            var root = new GameObject("Level");
+            var root = new GameObject("Level_ArteryDefense");
             Level.Root = root.transform;
-
-            // Our player brings its own camera; hide any default scene camera.
-            foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
-                cam.gameObject.SetActive(false);
+            Level.SetBounds(new Vector3(-Level.HalfWidth + 0.8f, 0.6f, 1.5f),
+                new Vector3(Level.HalfWidth - 0.8f, Level.Height - 1f, Level.Length - 1.5f));
 
             Atmosphere();
             Vessel(root.transform);
@@ -38,10 +36,10 @@ namespace Leukocyte
             BloodFlow(root.transform);
 
             var gm = root.AddComponent<GameManager>();
-            var player = PlayerRig(root.transform);
+            var player = PlayerRig(root.transform, PlayerSpawn, Quaternion.identity, FogColor);
             var waves = root.AddComponent<WaveManager>();
             var hud = root.AddComponent<Hud>();
-            gm.Init(player, waves, hud, PlayerSpawn);
+            gm.Init(GameMode.ArteryDefense, player, hud, PlayerSpawn, waves);
             waves.Init(BreachCenter);
             return root;
         }
@@ -216,11 +214,12 @@ namespace Leukocyte
             }
         }
 
-        static PlayerController PlayerRig(Transform root)
+        /// <summary>Player rig shared by both modes.</summary>
+        public static PlayerController PlayerRig(Transform root, Vector3 position, Quaternion facing, Color clearColor)
         {
             var go = new GameObject("Player");
             go.transform.SetParent(root, false);
-            go.transform.position = PlayerSpawn;
+            go.transform.SetPositionAndRotation(position, facing);
 
             var cc = go.AddComponent<CharacterController>();
             cc.height = 1.8f;
@@ -229,6 +228,7 @@ namespace Leukocyte
             cc.stepOffset = 0.4f;
 
             go.AddComponent<Health>().SetMax(100f);
+            go.AddComponent<Combatant>().team = Team.Immune;
 
             var camGo = new GameObject("PlayerCamera");
             camGo.tag = "MainCamera";
@@ -238,7 +238,7 @@ namespace Leukocyte
             cam.fieldOfView = 75f;
             cam.nearClipPlane = 0.05f;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = FogColor;
+            cam.backgroundColor = clearColor;
             camGo.AddComponent<AudioListener>();
 
             var pc = go.AddComponent<PlayerController>();

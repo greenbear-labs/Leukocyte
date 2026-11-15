@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Leukocyte
 {
-    /// <summary>Virus that keeps its distance, strafes, and lobs acid globs at the player.</summary>
+    /// <summary>Virus that keeps its distance, strafes, and lobs acid globs at its target.</summary>
     public class Spitter : Germ
     {
         public float minRange = 12f;
@@ -27,15 +27,13 @@ namespace Leukocyte
 
         protected override void Think(float dt)
         {
-            if (!TryGetPlayerTarget(aggroRange, out var target))
+            if (!TryGetTarget(out var target, out var aim))
             {
-                var node = NearestNode();
-                if (!node) return;
-                Steer((node.transform.position - transform.position).normalized, speed, dt);
+                GoToObjective(dt);
                 return;
             }
 
-            Vector3 to = target - transform.position;
+            Vector3 to = aim - transform.position;
             float dist = to.magnitude;
             Vector3 dir = to / Mathf.Max(dist, 0.001f);
 
@@ -54,10 +52,10 @@ namespace Leukocyte
 
             fireTimer -= dt;
             Vector3 muzzle = transform.position + dir * 1.1f;
-            if (fireTimer <= 0f && HasLineOfSight(muzzle, target))
+            if (fireTimer <= 0f && dist < aggroRange && Combatant.HasLineOfSight(muzzle, target))
             {
                 fireTimer = fireCooldown;
-                Vector3 lead = target + Player.Velocity * (dist / globSpeed) * 0.5f;
+                Vector3 lead = aim + target.Velocity * (dist / globSpeed) * 0.5f;
                 AcidGlob.Launch(muzzle, (lead - muzzle).normalized * globSpeed, globDamage);
             }
         }

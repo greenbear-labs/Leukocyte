@@ -96,7 +96,7 @@ namespace Leukocyte
                 if (i < waves.Length - 1) yield return Countdown(breakTime);
             }
 
-            if (Playing) GameManager.I.Win();
+            if (Playing) GameManager.I.Win("Infection cleared. The femoral artery is secure.");
         }
 
         void Spawn(GermType type)

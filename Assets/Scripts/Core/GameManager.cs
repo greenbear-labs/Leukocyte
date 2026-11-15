@@ -4,8 +4,10 @@ using UnityEngine;
 namespace Leukocyte
 {
     public enum GameState { Playing, Won, Lost }
+    public enum GameMode { ArteryDefense, TissueWar }
 
-    /// <summary>Match rules: Host Health, player lives, win and lose.</summary>
+    /// <summary>Match rules shared by both modes: state, player respawns, win and lose.
+    /// Artery Defense uses Host Health and lives; Tissue War hands scoring to the ConquestManager.</summary>
     public class GameManager : MonoBehaviour
     {
         public static GameManager I { get; private set; }
@@ -14,6 +16,7 @@ namespace Leukocyte
         public int startingLives = 3;
         public float respawnDelay = 3f;
 
+        public GameMode Mode { get; private set; }
         public GameState State { get; private set; } = GameState.Playing;
         public float HostHealth { get; private set; }
         public int Lives { get; private set; }
@@ -23,7 +26,7 @@ namespace Leukocyte
 
         public PlayerController Player { get; private set; }
         public WaveManager Waves { get; private set; }
-        public Hud Hud { get; private set; }
+        public HudBase Hud { get; private set; }
 
         Vector3 spawnPoint;
 
@@ -39,11 +42,12 @@ namespace Leukocyte
             if (I == this) I = null;
         }
 
-        public void Init(PlayerController player, WaveManager waves, Hud hud, Vector3 spawn)
+        public void Init(GameMode mode, PlayerController player, HudBase hud, Vector3 spawn, WaveManager waves = null)
         {
+            Mode = mode;
             Player = player;
-            Waves = waves;
             Hud = hud;
+            Waves = waves;
             spawnPoint = spawn;
             player.Hp.Died += OnPlayerDied;
         }
@@ -59,6 +63,13 @@ namespace Leukocyte
         void OnPlayerDied()
         {
             if (State != GameState.Playing) return;
+            if (Mode == GameMode.TissueWar)
+            {
+                if (ConquestManager.I) ConquestManager.I.OnUnitDied(Team.Immune);
+                if (State == GameState.Playing) StartCoroutine(RespawnRoutine());
+                return;
+            }
+
             Lives--;
             if (Lives <= 0) Lose("Your trooper was overwhelmed. No reinforcements left.");
             else StartCoroutine(RespawnRoutine());
@@ -73,18 +84,28 @@ namespace Leukocyte
                 yield return null;
             }
             RespawnTimer = 0f;
-            if (State == GameState.Playing) Player.Respawn(spawnPoint);
+            if (State != GameState.Playing) yield break;
+
+            if (Mode == GameMode.TissueWar && ConquestManager.I)
+            {
+                var spot = ConquestManager.I.PlayerSpawn(out var facing);
+                Player.Respawn(spot, facing);
+            }
+            else
+            {
+                Player.Respawn(spawnPoint);
+            }
         }
 
-        public void Win()
+        public void Win(string reason)
         {
             if (State != GameState.Playing) return;
             State = GameState.Won;
-            EndReason = "Infection cleared. The femoral artery is secure.";
+            EndReason = reason;
             ReleaseCursor();
         }
 
-        void Lose(string reason)
+        public void Lose(string reason)
         {
             if (State != GameState.Playing) return;
             State = GameState.Lost;
@@ -100,8 +121,10 @@ namespace Leukocyte
 
         void Update()
         {
-            if (State != GameState.Playing && Input.GetKeyDown(KeyCode.Return) && GameBootstrap.I)
-                GameBootstrap.I.Restart();
+            if (!GameBootstrap.I) return;
+            bool menuKey = Input.GetKeyDown(KeyCode.M) && (State != GameState.Playing || !Player.InputEnabled);
+            if (menuKey) GameBootstrap.I.ReturnToMenu();
+            else if (State != GameState.Playing && Input.GetKeyDown(KeyCode.Return)) GameBootstrap.I.Restart();
         }
     }
 }
