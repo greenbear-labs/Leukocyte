@@ -5,9 +5,23 @@ namespace Leukocyte
     public enum ColliderMode { Keep, None, Mesh }
 
     /// <summary>Helpers for building greybox geometry from Unity primitives.
-    /// Uses each primitive's default material so it works in Built-in, URP and HDRP.</summary>
+    /// Materials come from Assets/Resources/Leukocyte (created by the editor setup) so their
+    /// shaders are included in player builds. Falls back to the primitive's default material.</summary>
     public static class Greybox
     {
+        static Material litBase;
+        static Material emissiveBase;
+        static bool loaded;
+
+        static void LoadMaterials()
+        {
+            if (loaded) return;
+            loaded = true;
+            litBase = Resources.Load<Material>("Leukocyte/GreyboxLit");
+            emissiveBase = Resources.Load<Material>("Leukocyte/GreyboxEmissive");
+            if (!litBase) Debug.LogWarning("[Leukocyte] Missing Resources/Leukocyte/GreyboxLit material. Run Leukocyte > Create Femoral Artery Scene in the editor.");
+        }
+
         public static GameObject Prim(PrimitiveType type, string name, Transform parent,
             Vector3 localPos, Vector3 localScale, Color color,
             ColliderMode colliderMode = ColliderMode.Keep, float emission = 0f)
@@ -25,7 +39,19 @@ namespace Leukocyte
                     go.AddComponent<MeshCollider>().sharedMesh = go.GetComponent<MeshFilter>().sharedMesh;
             }
 
-            var mat = go.GetComponent<Renderer>().material;
+            LoadMaterials();
+            var renderer = go.GetComponent<Renderer>();
+            var template = emission > 0f && emissiveBase ? emissiveBase : litBase;
+            Material mat;
+            if (template)
+            {
+                mat = new Material(template);
+                renderer.sharedMaterial = mat;
+            }
+            else
+            {
+                mat = renderer.material;
+            }
             mat.color = color;
             if (emission > 0f && mat.HasProperty("_EmissionColor"))
             {

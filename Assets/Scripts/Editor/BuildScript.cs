@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace Leukocyte.EditorTools
@@ -20,7 +21,14 @@ namespace Leukocyte.EditorTools
 
         static void Build(BuildTarget target, string defaultPath)
         {
+            LeukocyteAssets.EnsureMaterials();
             if (!File.Exists(ScenePath)) LeukocyteSceneSetup.CreateScene();
+
+            // Older scenes were saved without fog; re-save with fog so its shader variants ship.
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            LeukocyteAssets.ApplySceneRenderSettings();
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
 
             string path = ArgValue("-buildPath") ?? defaultPath;
             if (path.StartsWith("~"))

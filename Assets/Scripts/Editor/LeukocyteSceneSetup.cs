@@ -23,6 +23,7 @@ namespace Leukocyte.EditorTools
             if (SessionState.GetBool(SessionKey, false)) return;
             SessionState.SetBool(SessionKey, true);
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            LeukocyteAssets.EnsureMaterials();
             if (File.Exists(ScenePath)) return;
             CreateScene();
         }
@@ -32,7 +33,9 @@ namespace Leukocyte.EditorTools
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
+            LeukocyteAssets.EnsureMaterials();
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            LeukocyteAssets.ApplySceneRenderSettings();
             new GameObject("GameBootstrap").AddComponent<GameBootstrap>();
 
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
