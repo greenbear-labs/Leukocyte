@@ -49,13 +49,13 @@ namespace Leukocyte
         }
 
         /// <summary>Non-positional UI or first-person sound.</summary>
-        public static void UI(Func<AudioClip> clip, float volume = 1f, float pitchJitter = 0.05f)
+        public static void UI(Func<AudioClip> clip, float volume = 1f, float pitchJitter = 0.05f, float basePitch = 1f)
         {
             Ensure();
-            Spawn(clip(), Vector3.zero, volume, pitchJitter, false);
+            Spawn(clip(), Vector3.zero, volume, pitchJitter, false, basePitch);
         }
 
-        static void Spawn(AudioClip clip, Vector3 position, float volume, float pitchJitter, bool spatial)
+        static void Spawn(AudioClip clip, Vector3 position, float volume, float pitchJitter, bool spatial, float basePitch = 1f)
         {
             if (!clip || voices >= MaxVoices || !Level.Root) return;
             var go = new GameObject("Sfx_" + clip.name);
@@ -64,7 +64,7 @@ namespace Leukocyte
             var src = go.AddComponent<AudioSource>();
             src.clip = clip;
             src.volume = volume;
-            src.pitch = 1f + Random.Range(-pitchJitter, pitchJitter);
+            src.pitch = basePitch + Random.Range(-pitchJitter, pitchJitter);
             src.spatialBlend = spatial ? 1f : 0f;
             src.minDistance = 4f;
             src.maxDistance = 80f;

@@ -15,7 +15,7 @@ namespace Leukocyte
         GameObject menuCamera;
         GameMode lastMode;
         bool inMenu = true;
-        GUIStyle title, subtitle, button, caption;
+        GUIStyle title, subtitle, button, caption, classButton, selectedClass;
 
         void Awake() { I = this; }
 
@@ -81,6 +81,10 @@ namespace Leukocyte
             button = new GUIStyle(GUI.skin.button) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             caption = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.UpperCenter, wordWrap = true };
             caption.normal.textColor = new Color(0.9f, 0.85f, 0.88f);
+            classButton = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
+            selectedClass = new GUIStyle(classButton);
+            selectedClass.normal.textColor = new Color(0.5f, 0.85f, 1f);
+            selectedClass.hover.textColor = new Color(0.5f, 0.85f, 1f);
         }
 
         void OnGUI()
@@ -89,10 +93,10 @@ namespace Leukocyte
             EnsureStyles();
             float W = Screen.width, H = Screen.height, cx = W * 0.5f;
 
-            GUI.Label(new Rect(0, H * 0.12f, W, 90), "LEUKOCYTE", title);
-            GUI.Label(new Rect(0, H * 0.12f + 84, W, 30), "The Immune Corps needs you. The Host is under attack.", subtitle);
+            GUI.Label(new Rect(0, H * 0.06f, W, 90), "LEUKOCYTE", title);
+            GUI.Label(new Rect(0, H * 0.06f + 84, W, 30), "The Immune Corps needs you. The Host is under attack.", subtitle);
 
-            float bw = 420f, bh = 64f, y = H * 0.4f;
+            float bw = 420f, bh = 60f, y = H * 0.06f + 140f;
             if (GUI.Button(new Rect(cx - bw * 0.5f, y, bw, bh), "ARTERY DEFENSE", button)) Play(GameMode.ArteryDefense);
             GUI.Label(new Rect(cx - bw * 0.5f, y + bh + 4, bw, 40),
                 "Solo. Hold the femoral artery against five escalating germ waves.", caption);
@@ -103,6 +107,20 @@ namespace Leukocyte
                 "Squad battle on the Alveoli Front. Capture outposts with your AI troopers and drain the infection's reinforcements.", caption);
 
             y += bh + 80f;
+            GUI.Label(new Rect(0, y, W, 24), "CHOOSE YOUR CELL", subtitle);
+            y += 30f;
+            float cw = 260f, gap = 14f, x0 = cx - (3 * cw + 2 * gap) * 0.5f;
+            for (int i = 0; i < 3; i++)
+            {
+                var p = ClassProfile.Get((TrooperClass)i);
+                bool sel = ClassProfile.Selected == p.id;
+                var r = new Rect(x0 + i * (cw + gap), y, cw, 40);
+                string label = (sel ? "> " : "") + p.title + "  " + p.role;
+                if (GUI.Button(r, label, sel ? selectedClass : classButton)) ClassProfile.Selected = p.id;
+                GUI.Label(new Rect(r.x, r.yMax + 4, cw, 60), p.blurb, caption);
+            }
+
+            y += 120f;
             if (GUI.Button(new Rect(cx - 100, y, 200, 40), "QUIT")) Application.Quit();
         }
     }

@@ -93,6 +93,8 @@ namespace Leukocyte
 
             if (gm.State == GameState.Playing && !player.Hp.IsDead)
             {
+                DrawMarks(player, W, H);
+                if (player.Rifle.Zoomed) DrawScope(W, H);
                 DrawCrosshair(W, H);
                 DrawDamageIndicator(player, W, H);
                 DrawAbilities(player, W, H);
@@ -117,7 +119,8 @@ namespace Leukocyte
 
         protected virtual void DrawRespawn(GameManager gm, float W, float H)
         {
-            GUI.Label(new Rect(0, H * 0.4f, W, 60), $"Trooper down. Respawning in {Mathf.CeilToInt(gm.RespawnTimer)}", medium);
+            GUI.Label(new Rect(0, H * 0.3f, W, 60), $"Trooper down. Respawning in {Mathf.CeilToInt(gm.RespawnTimer)}", medium);
+            DrawClassPicker(gm, W, H * 0.3f + 60);
         }
 
         protected virtual string LivesLine(GameManager gm) => $"Reinforcements: {gm.Lives}";
@@ -159,7 +162,7 @@ namespace Leukocyte
             var ab = player.Abilities;
             if (!ab) return;
             float x = W - 316, y = H - 112;
-            string burst = $"[G] CYTOKINE BURST  x{ab.BurstCharges}";
+            string burst = $"[G] {ab.AbilityName}  x{ab.BurstCharges}";
             GUI.Label(new Rect(x, y, 300, 22), burst, smallRight);
             if (ab.BurstCharges < ab.burstCharges)
                 Fill(new Rect(x + 150, y + 20, 150 * Mathf.Clamp01(ab.BurstRechargeProgress), 3), new Color(1f, 0.85f, 0.35f));
@@ -167,6 +170,29 @@ namespace Leukocyte
             GUI.Label(new Rect(x, y + 24, 300, 22), grab, smallRight);
             if (ab.GrabReady < 1f)
                 Fill(new Rect(x + 150, y + 44, 150 * ab.GrabReady, 3), ImmuneBlue);
+            if (ConquestManager.I)
+            {
+                int squad = ab.SquadCount;
+                GUI.Label(new Rect(x, y - 24, 300, 22), squad > 0 ? $"[Q] SQUAD FOLLOWING ({squad})" : "[Q] CALL SQUAD", smallRight);
+            }
+        }
+
+        /// <summary>Red diamonds over enemies marked by Antibody Tag, visible through cover.</summary>
+        void DrawMarks(PlayerController player, float W, float H)
+        {
+            var cam = player.Cam;
+            foreach (var c in Combatant.All)
+            {
+                if (!c.Alive || !c.Marked) continue;
+                Vector3 sp = cam.WorldToScreenPoint(c.AimPoint + Vector3.up * 0.5f);
+                if (sp.z <= 0f) continue;
+                float x = sp.x, y = H - sp.y;
+                var old = GUI.matrix;
+                GUIUtility.RotateAroundPivot(45f, new Vector2(x, y));
+                Fill(new Rect(x - 6, y - 6, 12, 12), new Color(1f, 0.25f, 0.3f, 0.9f));
+                Fill(new Rect(x - 3, y - 3, 6, 6), new Color(0.2f, 0f, 0f, 0.9f));
+                GUI.matrix = old;
+            }
         }
 
         protected virtual float KillFeedTop => 16f;
@@ -187,29 +213,66 @@ namespace Leukocyte
             }
         }
 
+        void DrawScope(float W, float H)
+        {
+            float r = Mathf.Min(W, H) * 0.45f;
+            var dark = new Color(0f, 0f, 0f, 0.85f);
+            Fill(new Rect(0, 0, W * 0.5f - r, H), dark);
+            Fill(new Rect(W * 0.5f + r, 0, W * 0.5f - r, H), dark);
+            Fill(new Rect(W * 0.5f - r, 0, 2 * r, H * 0.5f - r), dark);
+            Fill(new Rect(W * 0.5f - r, H * 0.5f + r, 2 * r, H * 0.5f - r), dark);
+            Fill(new Rect(W * 0.5f - r, H * 0.5f - 0.5f, 2 * r, 1), new Color(0f, 0f, 0f, 0.6f));
+            Fill(new Rect(W * 0.5f - 0.5f, H * 0.5f - r, 1, 2 * r), new Color(0f, 0f, 0f, 0.6f));
+        }
+
+        /// <summary>Class picker shown on the pause and respawn screens. Tab cycles; applies at next deploy.</summary>
+        protected void DrawClassPicker(GameManager gm, float W, float y)
+        {
+            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Tab)
+            {
+                ClassProfile.Selected = (TrooperClass)(((int)ClassProfile.Selected + 1) % 3);
+                Event.current.Use();
+            }
+            var current = gm.Player.Class;
+            float bw = 220f, gap = 12f, x0 = W * 0.5f - (3 * bw + 2 * gap) * 0.5f;
+            for (int i = 0; i < 3; i++)
+            {
+                var p = ClassProfile.Get((TrooperClass)i);
+                bool sel = ClassProfile.Selected == p.id;
+                var r = new Rect(x0 + i * (bw + gap), y, bw, 64);
+                Fill(r, sel ? new Color(0.3f, 0.55f, 0.9f, 0.85f) : new Color(0f, 0f, 0f, 0.55f));
+                GUI.Label(new Rect(r.x, r.y + 4, r.width, 24), $"{p.title}  ({p.role})", tiny);
+                GUI.Label(new Rect(r.x, r.y + 26, r.width, 34), p.weapon.name, tiny);
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) ClassProfile.Selected = p.id;
+            }
+            string note = ClassProfile.Selected == current.id ? "Tab to change class" : "New class applies when you next deploy";
+            GUI.Label(new Rect(0, y + 70, W, 22), note, small.Centered());
+        }
+
         void DrawPlayerStatus(GameManager gm, float W, float H)
         {
             var player = gm.Player;
             var rifle = player.Rifle;
             Bar(new Rect(16, H - 44, 280, 26), player.Hp.Current / player.Hp.max, ImmuneBlue,
-                $"TROOPER  {Mathf.CeilToInt(player.Hp.Current)}", small);
+                $"{player.Class.title}  {Mathf.CeilToInt(player.Hp.Current)}", small);
             string lives = LivesLine(gm);
             if (!string.IsNullOrEmpty(lives)) GUI.Label(new Rect(16, H - 70, 300, 24), lives, small);
 
             string ammo = rifle.Reloading ? "RELOADING..." : $"{rifle.Ammo} / {rifle.magazineSize}";
-            GUI.Label(new Rect(W - 316, H - 64, 300, 24), "ENZYME RIFLE", smallRight);
+            GUI.Label(new Rect(W - 316, H - 64, 300, 24), rifle.WeaponName, smallRight);
             GUI.Label(new Rect(W - 316, H - 42, 300, 30), ammo, new GUIStyle(smallRight) { fontSize = 24, fontStyle = FontStyle.Bold });
         }
 
         void DrawPause(float W, float H)
         {
             Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.5f));
-            GUI.Label(new Rect(0, H * 0.38f, W, 60), "Click to deploy", big);
+            GUI.Label(new Rect(0, H * 0.18f, W, 60), "Click to deploy", big);
+            DrawClassPicker(GameManager.I, W, H * 0.18f + 70);
             GUI.Label(new Rect(0, H * 0.38f + 60, W, 40),
                 "WASD move   Shift sprint   Space jump   Mouse aim   LMB fire   R reload", medium);
             GUI.Label(new Rect(0, H * 0.38f + 130, W, 40),
-                "G Cytokine Burst (grenade)   F Phagocyte Grab (engulf a weakened germ to heal)   Esc release mouse", medium);
-            GUI.Label(new Rect(0, H * 0.38f + 170, W, 40), "M  main menu", medium);
+                "G class ability   F Phagocyte Grab (engulf a weakened germ to heal)   Q squad (Tissue War)   RMB zoom (T-Cell)", medium);
+            GUI.Label(new Rect(0, H * 0.38f + 170, W, 40), "Esc release mouse     M  main menu", medium);
         }
 
         void DrawEnd(GameManager gm, float W, float H)
@@ -221,5 +284,10 @@ namespace Leukocyte
             GUI.Label(new Rect(0, H * 0.35f + 100, W, 40), $"Enemies destroyed: {gm.Kills}     Score: {KillFeed.Score}", medium);
             GUI.Label(new Rect(0, H * 0.35f + 150, W, 40), "Enter  play again      M  main menu", medium);
         }
+    }
+
+    static class GuiStyleCenterExtensions
+    {
+        public static GUIStyle Centered(this GUIStyle s) => new GUIStyle(s) { alignment = TextAnchor.UpperCenter };
     }
 }

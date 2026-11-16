@@ -34,6 +34,12 @@ namespace Leukocyte
         Renderer[] renderers;
         Color[] baseColors;
         float flashTimer;
+        bool retreating;
+
+        /// <summary>Set by the player's squad order: this trooper escorts the player.</summary>
+        public bool Following { get; set; }
+        public int SquadSlot { get; set; }
+        public bool Retreating => retreating;
 
         public static ImmuneBot Create(Vector3 position)
         {
@@ -95,10 +101,54 @@ namespace Leukocyte
                 target = Combatant.NearestHostile(Team.Immune, Eye, sightRange, true);
             }
 
-            if (target) Fight(dt);
+            // Wounded troopers fall back to heal at a held post.
+            if (!retreating && hp.Current < hp.max * 0.35f && !Following) retreating = true;
+            if (retreating && hp.Current > hp.max * 0.85f) retreating = false;
+
+            if (retreating) Retreat(dt);
+            else if (Following && FollowLeash(dt)) { }
+            else if (target) Fight(dt);
             else Advance(dt);
 
             UpdateFlash(dt);
+        }
+
+        void Retreat(float dt)
+        {
+            if (!ConquestManager.I) return;
+            Vector3 safe = ConquestManager.I.NearestSafePoint(Team.Immune, transform.position);
+            Vector3 to = safe - transform.position;
+            to.y = 0f;
+            Vector3 face = target ? target.AimPoint - Eye : to;
+            if (to.sqrMagnitude > 9f) Move(to.normalized, speed * 1.1f, dt, face);
+            if (target) TryShoot(dt, Vector3.Distance(Eye, target.AimPoint));
+        }
+
+        /// <summary>Squad follow: stay in formation near the player. Returns false when free to fight nearby.</summary>
+        bool FollowLeash(float dt)
+        {
+            var gm = GameManager.I;
+            var player = gm ? gm.Player : null;
+            if (!player || player.Hp.IsDead) return false;
+
+            Vector3 back = -player.transform.forward;
+            Vector3 side = player.transform.right;
+            float lateral = (SquadSlot % 2 == 0 ? 1f : -1f) * (2.5f + 1.5f * (SquadSlot / 2));
+            Vector3 slot = player.transform.position + back * (3f + SquadSlot * 0.8f) + side * lateral;
+            Vector3 to = slot - transform.position;
+            to.y = 0f;
+            float dist = to.magnitude;
+
+            // Close to the player with an enemy in sight: fight from here.
+            if (target && dist < 12f) return false;
+
+            if (dist > 1.5f)
+            {
+                float s = dist > 10f ? speed * 1.3f : speed;
+                Move(to / dist, s, dt, target ? target.AimPoint - Eye : player.transform.forward);
+            }
+            if (target) TryShoot(dt, Vector3.Distance(Eye, target.AimPoint));
+            return true;
         }
 
         void Advance(float dt)
@@ -128,7 +178,11 @@ namespace Leukocyte
             if (dist > preferredRange + 4f) move += flat;
             else if (dist < preferredRange - 6f) move -= flat * 0.8f;
             Move(move.sqrMagnitude > 0.01f ? move.normalized : Vector3.zero, speed * 0.8f, dt, flat);
+            TryShoot(dt, dist);
+        }
 
+        void TryShoot(float dt, float dist)
+        {
             // Bursts of 3-5 shots.
             if (burstPause > 0f)
             {
@@ -149,7 +203,7 @@ namespace Leukocyte
 
             float hitChance = Mathf.Lerp(0.65f, 0.2f, dist / sightRange);
             Vector3 aim = target.AimPoint;
-            if (Random.value < hitChance) target.Hp.Damage(damage, Eye);
+            if (Random.value < hitChance) target.Hp.Damage(damage * target.DamageTakenMultiplier, Eye);
             else aim += Random.insideUnitSphere * 1.5f;
 
             Fader.Tracer(muzzle.position, aim, BoltColor);

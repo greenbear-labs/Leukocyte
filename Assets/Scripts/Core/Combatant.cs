@@ -23,6 +23,24 @@ namespace Leukocyte
         public bool Alive => Hp && !Hp.IsDead && isActiveAndEnabled;
 
         Vector3 lastPos;
+        float markedUntil = -1f;
+        GameObject markVisual;
+
+        /// <summary>Antibody Tag: marked units take extra damage and show through walls on the HUD.</summary>
+        public bool Marked => Time.time < markedUntil;
+        public float DamageTakenMultiplier => Marked ? 1.5f : 1f;
+
+        public void Mark(float seconds)
+        {
+            markedUntil = Time.time + seconds;
+            if (!markVisual)
+            {
+                markVisual = Greybox.Prim(PrimitiveType.Cube, "AntibodyTag", transform, Vector3.up * (aimHeight + 1.6f),
+                    Vector3.one * 0.35f, new Color(1f, 0.25f, 0.3f), ColliderMode.None, 3f);
+                markVisual.transform.localRotation = Quaternion.Euler(45f, 0f, 45f);
+            }
+            markVisual.SetActive(true);
+        }
 
         void Awake()
         {
@@ -38,6 +56,11 @@ namespace Leukocyte
             float dt = Time.deltaTime;
             if (dt > 0f) Velocity = (transform.position - lastPos) / dt;
             lastPos = transform.position;
+            if (markVisual && markVisual.activeSelf)
+            {
+                if (!Marked) markVisual.SetActive(false);
+                else markVisual.transform.Rotate(0f, 180f * dt, 0f, Space.World);
+            }
         }
 
         public bool IsHostileTo(Team other) => team != other;

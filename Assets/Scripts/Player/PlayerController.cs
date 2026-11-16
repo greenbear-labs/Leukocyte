@@ -18,6 +18,13 @@ namespace Leukocyte
         public Camera Cam { get; private set; }
         public EnzymeRifle Rifle { get; private set; }
         public PlayerAbilities Abilities { get; private set; }
+        public ClassProfile Class { get; private set; }
+
+        float baseWalkSpeed = -1f;
+        bool freshSpawn = true;
+
+        /// <summary>Called on firing or taking damage; after that, class changes wait for the next deploy.</summary>
+        public void MarkEngaged() { freshSpawn = false; }
         public Vector3 Velocity { get; private set; }
         public bool Sprinting { get; private set; }
         public bool InputEnabled => Cursor.lockState == CursorLockMode.Locked;
@@ -37,15 +44,29 @@ namespace Leukocyte
             cc = GetComponent<CharacterController>();
             Hp = GetComponent<Health>();
             Rifle = gameObject.AddComponent<EnzymeRifle>();
-            Rifle.Init(this, cam);
+            Class = ClassProfile.Get(ClassProfile.Selected);
+            Rifle.Init(this, cam, Class.weapon);
             Abilities = gameObject.AddComponent<PlayerAbilities>();
             Abilities.Init(this);
+            ApplyClass(Class);
             Hp.Damaged += amount =>
             {
+                freshSpawn = false;
                 AddShake(Mathf.Clamp01(amount / 30f) * 0.5f);
                 Sfx.UI(() => Sfx.Hurt, 0.8f);
             };
             LockCursor();
+        }
+
+        /// <summary>Switches to a class: health, speed, weapon and abilities.</summary>
+        public void ApplyClass(ClassProfile profile)
+        {
+            Class = profile;
+            if (baseWalkSpeed < 0f) baseWalkSpeed = walkSpeed;
+            walkSpeed = baseWalkSpeed * profile.speedMultiplier;
+            Hp.SetMax(profile.maxHealth);
+            if (Rifle.Profile != profile.weapon) Rifle.SetProfile(profile.weapon);
+            Abilities.Configure(profile);
         }
 
         public static void LockCursor()
@@ -70,6 +91,9 @@ namespace Leukocyte
 
             float dt = Time.deltaTime;
 
+            // Before your first shot or hit after deploying, you can still swap class freely.
+            if (freshSpawn && !Hp.IsDead && ClassProfile.Selected != Class.id) ApplyClass(ClassProfile.Get(ClassProfile.Selected));
+
             if (Hp.IsDead)
             {
                 // Slump to the floor while waiting to respawn.
@@ -80,8 +104,9 @@ namespace Leukocyte
 
             if (InputEnabled)
             {
-                transform.Rotate(0f, Input.GetAxis("Mouse X") * mouseSensitivity, 0f);
-                pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * mouseSensitivity, -85f, 85f);
+                float sens = mouseSensitivity * (Rifle.Zoomed ? 0.35f : 1f);
+                transform.Rotate(0f, Input.GetAxis("Mouse X") * sens, 0f);
+                pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * sens, -85f, 85f);
             }
             // Screen shake and sprint field of view.
             trauma = Mathf.Max(0f, trauma - 1.5f * dt);
@@ -89,7 +114,8 @@ namespace Leukocyte
             Cam.transform.localRotation = Quaternion.Euler(pitch + Noise(1) * 4f * shake, Noise(2) * 4f * shake, Noise(3) * 6f * shake);
             Cam.transform.localPosition = EyeOffset + new Vector3(Noise(4), Noise(5), 0f) * 0.12f * shake;
             if (baseFov < 0f) baseFov = Cam.fieldOfView;
-            Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, Sprinting ? baseFov + 8f : baseFov, 8f * dt);
+            float fov = Rifle.Zoomed ? Rifle.Profile.zoomFov : Sprinting ? baseFov + 8f : baseFov;
+            Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, fov, (Rifle.Zoomed ? 14f : 8f) * dt);
 
             Vector3 input = Vector3.zero;
             if (InputEnabled)
@@ -138,6 +164,9 @@ namespace Leukocyte
             momentum = Vector3.zero;
             Cam.transform.localPosition = EyeOffset;
             Cam.transform.localRotation = Quaternion.identity;
+            var chosen = ClassProfile.Get(ClassProfile.Selected);
+            if (chosen != Class) ApplyClass(chosen);
+            freshSpawn = true;
             Hp.ResetHealth();
             Rifle.Refill();
             Abilities.Refill();

@@ -119,16 +119,17 @@ namespace Leukocyte
         {
             var cm = ConquestManager.I;
             Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.35f));
-            GUI.Label(new Rect(0, H * 0.3f, W, 50), $"Trooper down. Redeploying in {Mathf.CeilToInt(gm.RespawnTimer)}", medium);
+            GUI.Label(new Rect(0, H * 0.18f, W, 50), $"Trooper down. Redeploying in {Mathf.CeilToInt(gm.RespawnTimer)}", medium);
+            DrawClassPicker(gm, W, H * 0.18f + 50);
             if (!cm) return;
 
             var options = cm.SpawnOptions(Team.Immune);
-            GUI.Label(new Rect(0, H * 0.3f + 44, W, 30), "Choose a spawn point (number keys). Default is the front line.", small.Center());
+            GUI.Label(new Rect(0, H * 0.3f + 120, W, 30), "Choose a spawn point (number keys). Default is the front line.", small.Center());
             for (int i = 0; i < options.Count && i < 9; i++)
             {
                 string label = options[i].isHQ ? "Corps HQ" : $"Outpost {options[i].letter}";
                 bool chosen = cm.PlayerSpawnChoice == i;
-                var row = new Rect(W * 0.5f - 120, H * 0.3f + 80 + i * 30, 240, 26);
+                var row = new Rect(W * 0.5f - 120, H * 0.3f + 150 + i * 30, 240, 26);
                 Fill(row, chosen ? new Color(0.3f, 0.55f, 0.9f, 0.8f) : new Color(0f, 0f, 0f, 0.5f));
                 GUI.Label(row, $"[{i + 1}]  {label}", tiny);
             }

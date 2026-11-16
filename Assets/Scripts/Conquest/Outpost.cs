@@ -10,6 +10,7 @@ namespace Leukocyte
         public string letter = "A";
         public float radius = 9f;
         public float captureSeconds = 10f;
+        public float healPerSecond = 6f;
         public bool isHQ;
 
         public float Control { get; private set; }
@@ -52,6 +53,8 @@ namespace Leukocyte
                 if (!c.Alive || !Contains(c.transform.position)) continue;
                 if (c.team == Team.Immune) immune++;
                 else infection++;
+                // Held posts patch up their own side.
+                if (Owner == c.team) c.Hp.Heal(healPerSecond * (isHQ ? 2f : 1f) * Time.deltaTime);
             }
             ImmuneCount = immune;
             InfectionCount = infection;

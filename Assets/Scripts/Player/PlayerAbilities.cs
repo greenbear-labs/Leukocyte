@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace Leukocyte
 {
-    /// <summary>Leukocyte trooper abilities.
-    /// G: Cytokine Burst, a thrown area blast (2 charges).
+    /// <summary>Leukocyte trooper abilities, configured by class.
+    /// G: the class ability. Cytokine Burst (thrown area blast) or Antibody Tag (marks enemies in a cone).
     /// F: Phagocyte Grab, engulfs a weakened germ in front of you to heal, or punches a healthy one.</summary>
     public class PlayerAbilities : MonoBehaviour
     {
@@ -16,7 +16,13 @@ namespace Leukocyte
         public float grabDamage = 40f;
         [Range(0f, 1f)] public float engulfThreshold = 0.4f;
 
+        public Ability ability = Ability.CytokineBurst;
+        public float tagRange = 45f;
+        public float tagConeDegrees = 25f;
+        public float tagSeconds = 10f;
+
         public int BurstCharges { get; private set; }
+        public string AbilityName => ability == Ability.AntibodyTag ? "ANTIBODY TAG" : "CYTOKINE BURST";
         public float BurstRechargeProgress => 1f - burstTimer / burstRecharge;
         public float GrabReady => grabTimer <= 0f ? 1f : 1f - grabTimer / grabCooldown;
 
@@ -28,6 +34,16 @@ namespace Leukocyte
         {
             owner = player;
             BurstCharges = burstCharges;
+        }
+
+        public void Configure(ClassProfile profile)
+        {
+            ability = profile.ability;
+            burstCharges = profile.abilityCharges;
+            burstRecharge = profile.abilityRecharge;
+            grabHeal = profile.grabHeal;
+            engulfThreshold = profile.engulfThreshold;
+            Refill();
         }
 
         public void Refill()
@@ -51,8 +67,13 @@ namespace Leukocyte
             var gm = GameManager.I;
             if (!gm || gm.State != GameState.Playing || owner.Hp.IsDead || !owner.InputEnabled) return;
 
-            if (Input.GetKeyDown(KeyCode.G)) ThrowBurst();
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                if (ability == Ability.AntibodyTag) Tag();
+                else ThrowBurst();
+            }
             if (Input.GetKeyDown(KeyCode.F)) Grab();
+            if (Input.GetKeyDown(KeyCode.Q)) SquadOrder();
         }
 
         void ThrowBurst()
@@ -63,6 +84,63 @@ namespace Leukocyte
             Vector3 velocity = cam.forward * 22f + Vector3.up * 4f + owner.Velocity * 0.5f;
             CytokineBurst.Launch(cam.position + cam.forward * 0.8f, velocity, owner.GetComponent<Collider>());
             Sfx.UI(() => Sfx.Throw, 0.6f);
+        }
+
+        public int squadSize = 4;
+        public float recruitRange = 35f;
+
+        public int SquadCount
+        {
+            get { int n = 0; foreach (var b in ImmuneBot.All) if (b.Following) n++; return n; }
+        }
+
+        /// <summary>Q: call the nearest troopers to follow you, or send your squad back to the objectives.</summary>
+        void SquadOrder()
+        {
+            if (ImmuneBot.All.Count == 0) { Sfx.UI(() => Sfx.Denied, 0.5f); return; }
+            if (SquadCount > 0)
+            {
+                foreach (var b in ImmuneBot.All) b.Following = false;
+                KillFeed.Add("Squad: push the objectives!", new Color(0.45f, 0.75f, 1f));
+                Sfx.UI(() => Sfx.CaptureGood, 0.4f, 0f, 0.8f);
+                return;
+            }
+
+            var candidates = ImmuneBot.All
+                .Where(b => !b.Retreating && (b.transform.position - transform.position).sqrMagnitude < recruitRange * recruitRange)
+                .OrderBy(b => (b.transform.position - transform.position).sqrMagnitude)
+                .Take(squadSize).ToList();
+            if (candidates.Count == 0) { KillFeed.Add("No troopers in range", new Color(1f, 0.6f, 0.5f)); Sfx.UI(() => Sfx.Denied, 0.5f); return; }
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                candidates[i].Following = true;
+                candidates[i].SquadSlot = i;
+            }
+            KillFeed.Add($"Squad: {candidates.Count} troopers on me!", new Color(0.45f, 0.75f, 1f));
+            Sfx.UI(() => Sfx.CaptureGood, 0.4f, 0f, 1.2f);
+        }
+
+        void Tag()
+        {
+            if (BurstCharges <= 0) { Sfx.UI(() => Sfx.Denied, 0.5f); return; }
+            var cam = owner.Cam.transform;
+            int tagged = 0;
+            float cos = Mathf.Cos(tagConeDegrees * Mathf.Deg2Rad);
+            foreach (var c in Combatant.All)
+            {
+                if (!c.Alive || c.team == Team.Immune) continue;
+                Vector3 to = c.AimPoint - cam.position;
+                float d = to.magnitude;
+                if (d > tagRange || Vector3.Dot(to / d, cam.forward) < cos) continue;
+                if (!Combatant.HasLineOfSight(cam.position, c)) continue;
+                c.Mark(tagSeconds);
+                tagged++;
+            }
+            if (tagged == 0) { Sfx.UI(() => Sfx.Denied, 0.5f); return; }
+            BurstCharges--;
+            KillFeed.Add($"Antibody Tag: {tagged} marked", new Color(1f, 0.45f, 0.5f));
+            KillFeed.AddScore(10 * tagged);
+            Sfx.UI(() => Sfx.CaptureGood, 0.5f, 0f, 1.5f);
         }
 
         void Grab()
@@ -96,8 +174,9 @@ namespace Leukocyte
             }
             else
             {
-                bool kill = best.Hp.Current <= grabDamage;
-                best.Hp.Damage(grabDamage, transform.position);
+                float dmg = grabDamage * best.DamageTakenMultiplier;
+                bool kill = best.Hp.Current <= dmg;
+                best.Hp.Damage(dmg, transform.position);
                 best.transform.position = Level.Clamp(best.transform.position + cam.forward * 3f);
                 if (kill) KillFeed.PlayerKill(best, "Crushed");
                 if (GameManager.I.Hud) GameManager.I.Hud.ShowHitMarker(kill);
@@ -156,7 +235,7 @@ namespace Leukocyte
                 if (!c.Alive || c.team == Team.Immune) continue;
                 float d = Vector3.Distance(c.AimPoint, p);
                 if (d > radius) continue;
-                float dmg = damage * Mathf.Lerp(1f, 0.35f, d / radius);
+                float dmg = damage * Mathf.Lerp(1f, 0.35f, d / radius) * c.DamageTakenMultiplier;
                 bool kill = c.Hp.Current <= dmg;
                 c.Hp.Damage(dmg, p);
                 if (kill) KillFeed.PlayerKill(c, "Burst");

@@ -27,7 +27,10 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 | Jump | Space |
 | Fire Enzyme Rifle | Left mouse |
 | Reload | R |
-| Cytokine Burst (bouncing grenade, 2 charges, 12 s recharge) | G |
+| Class ability: Cytokine Burst grenade, or Antibody Tag for the T-Cell | G |
+| Zoom (T-Cell) | Right mouse |
+| Squad order: call nearby troopers to follow, or send them back to the objectives (Tissue War) | Q |
+| Change class (pause or respawn screen) | Tab or click |
 | Phagocyte Grab (engulf a weakened germ to heal 30, or punch a healthy one) | F |
 | Release mouse | Esc (click to recapture) |
 | Choose spawn point (Tissue War, while down) | 1-9 |
@@ -42,6 +45,8 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 - A side loses when its tickets reach 0.
 - Up to 11 allied troopers and 18 germs fight at once. They push the nearest outposts they don't hold, and about a quarter of them stay back to defend.
 - When you die, pick your HQ or any outpost you hold that isn't contested. By default you spawn at the front line.
+- Held outposts heal their own side (HQs heal twice as fast). Wounded troopers fall back to heal, then rejoin.
+- Press Q to have up to 4 nearby troopers follow you in formation; press it again to send them back to the objectives.
 
 ## Artery Defense rules
 
@@ -49,6 +54,16 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 - They hunt you when you're close; otherwise they float toward the three pink **Tissue Nodes**. Every germ that touches a node drains **Host Vitals**.
 - Survive all five waves to win. You lose if Host Vitals hit 0 or you run out of reinforcements (3 lives).
 - A gentle blood current pushes you back toward the Lymph Checkpoint, and red blood cells drift past for flow.
+
+## Classes
+
+Pick on the main menu, or press Tab on the pause or respawn screen. A change applies right away if you haven't fired or been hit since deploying, otherwise at your next deploy.
+
+| Class | Role | HP | Speed | Weapon | G ability |
+| --- | --- | --- | --- | --- | --- |
+| Neutrophil | Assault | 100 | 105% | Enzyme Rifle: automatic, 12 dmg, 30 rounds | Cytokine Burst x3 |
+| Macrophage | Heavy | 170 | 85% | Lysosome Scattergun: 9 pellets x 10 dmg, 6 shells | Cytokine Burst x2, bigger Grab heals |
+| T-Cell | Marksman | 85 | 110% | Perforin Lance: 55 dmg, 8 rounds, zoom | Antibody Tag x2: marks enemies in a cone for 10 s; they take +50% damage and show through walls |
 
 ## Germs
 

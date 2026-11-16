@@ -156,6 +156,20 @@ namespace Leukocyte
             return pick.transform.position + new Vector3(Mathf.Cos(angle) * r, 0f, Mathf.Sin(angle) * r);
         }
 
+        /// <summary>Nearest place a wounded unit can heal: a held outpost or its HQ.</summary>
+        public Vector3 NearestSafePoint(Team team, Vector3 from)
+        {
+            Outpost best = team == Team.Immune ? ImmuneHQ : InfectionHQ;
+            float bestSqr = (best.transform.position - from).sqrMagnitude;
+            foreach (var o in Outposts)
+            {
+                if (o.Owner != team || o.Contested) continue;
+                float d = (o.transform.position - from).sqrMagnitude;
+                if (d < bestSqr) { bestSqr = d; best = o; }
+            }
+            return best.transform.position;
+        }
+
         // ---- Spawning ----------------------------------------------------
 
         /// <summary>HQ first, then outposts the team holds that aren't contested.</summary>
