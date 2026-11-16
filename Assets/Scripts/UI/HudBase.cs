@@ -86,8 +86,14 @@ namespace Leukocyte
             if (!gm || !gm.Player) return;
             EnsureStyles();
 
-            float W = Screen.width, H = Screen.height;
+            UiScale.Apply();
+            float W = UiScale.Width, H = UiScale.Height;
             var player = gm.Player;
+            if (TouchControls.I)
+            {
+                TouchControls.I.ShowSquad = ConquestManager.I != null;
+                TouchControls.I.ShowZoom = player.Rifle.Profile.zoomFov > 0f;
+            }
 
             if (hurtTimer > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtTimer));
 
@@ -100,6 +106,7 @@ namespace Leukocyte
                 DrawAbilities(player, W, H);
             }
             DrawKillFeed(W, H);
+            DrawBossBar(W);
 
             DrawModeHud(gm, W, H);
             DrawPlayerStatus(gm, W, H);
@@ -186,13 +193,23 @@ namespace Leukocyte
                 if (!c.Alive || !c.Marked) continue;
                 Vector3 sp = cam.WorldToScreenPoint(c.AimPoint + Vector3.up * 0.5f);
                 if (sp.z <= 0f) continue;
-                float x = sp.x, y = H - sp.y;
+                Vector2 g = UiScale.FromScreen(sp);
+                float x = g.x, y = g.y;
                 var old = GUI.matrix;
                 GUIUtility.RotateAroundPivot(45f, new Vector2(x, y));
                 Fill(new Rect(x - 6, y - 6, 12, 12), new Color(1f, 0.25f, 0.3f, 0.9f));
                 Fill(new Rect(x - 3, y - 3, 6, 6), new Color(0.2f, 0f, 0f, 0.9f));
                 GUI.matrix = old;
             }
+        }
+
+        void DrawBossBar(float W)
+        {
+            var boss = SporeMother.Current;
+            if (!boss || boss.Hp.IsDead) return;
+            var r = new Rect(W * 0.5f - 230, 140, 460, 20);
+            Bar(r, boss.Hp.Current / boss.Hp.max, new Color(0.85f, 0.4f, 0.95f), "", small);
+            GUI.Label(new Rect(r.x, r.yMax, r.width, 22), "SPORE MOTHER", tiny);
         }
 
         protected virtual float KillFeedTop => 16f;
@@ -245,7 +262,8 @@ namespace Leukocyte
                 GUI.Label(new Rect(r.x, r.y + 26, r.width, 34), p.weapon.name, tiny);
                 if (GUI.Button(r, GUIContent.none, GUIStyle.none)) ClassProfile.Selected = p.id;
             }
-            string note = ClassProfile.Selected == current.id ? "Tab to change class" : "New class applies when you next deploy";
+            string note = ClassProfile.Selected != current.id ? "New class applies when you next deploy"
+                : GameInput.TouchMode ? "Tap a class to change" : "Tab or click to change class";
             GUI.Label(new Rect(0, y + 70, W, 22), note, small.Centered());
         }
 
@@ -263,26 +281,51 @@ namespace Leukocyte
             GUI.Label(new Rect(W - 316, H - 42, 300, 30), ammo, new GUIStyle(smallRight) { fontSize = 24, fontStyle = FontStyle.Bold });
         }
 
+        protected GUIStyle bigButton;
+
+        void EnsureButtonStyle()
+        {
+            if (bigButton != null) return;
+            bigButton = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
+        }
+
         void DrawPause(float W, float H)
         {
-            Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.5f));
-            GUI.Label(new Rect(0, H * 0.18f, W, 60), "Click to deploy", big);
-            DrawClassPicker(GameManager.I, W, H * 0.18f + 70);
-            GUI.Label(new Rect(0, H * 0.38f + 60, W, 40),
-                "WASD move   Shift sprint   Space jump   Mouse aim   LMB fire   R reload", medium);
-            GUI.Label(new Rect(0, H * 0.38f + 130, W, 40),
-                "G class ability   F Phagocyte Grab (engulf a weakened germ to heal)   Q squad (Tissue War)   RMB zoom (T-Cell)", medium);
-            GUI.Label(new Rect(0, H * 0.38f + 170, W, 40), "Esc release mouse     M  main menu", medium);
+            EnsureButtonStyle();
+            bool touch = GameInput.TouchMode;
+            Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.55f));
+            GUI.Label(new Rect(0, H * 0.12f, W, 60), touch ? "PAUSED" : "Click to deploy", big);
+            DrawClassPicker(GameManager.I, W, H * 0.12f + 70);
+
+            float y = H * 0.12f + 180;
+            if (touch)
+            {
+                GUI.Label(new Rect(0, y, W, 60),
+                    "Left thumb: move (push to the edge to sprint).  Right thumb: drag to look.  Hold FIRE and drag to aim while shooting.\nBURST/TAG is your class ability, GRAB engulfs a weakened germ to heal, SQUAD calls nearby troopers.", small.Centered());
+                if (GUI.Button(new Rect(W * 0.5f - 160, y + 80, 320, 56), "RESUME", bigButton)) PlayerController.LockCursor();
+                if (GUI.Button(new Rect(W * 0.5f - 160, y + 150, 320, 48), "MAIN MENU", bigButton) && GameBootstrap.I) GameBootstrap.I.ReturnToMenu();
+            }
+            else
+            {
+                GUI.Label(new Rect(0, y, W, 30), "WASD move   Shift sprint   Space jump   Mouse aim   LMB fire   R reload", medium);
+                GUI.Label(new Rect(0, y + 34, W, 30), "G class ability   F Phagocyte Grab (engulf a weakened germ to heal)", medium);
+                GUI.Label(new Rect(0, y + 68, W, 30), "Q squad (Tissue War)   RMB zoom (T-Cell)   Esc release mouse   M main menu", medium);
+                if (GUI.Button(new Rect(W * 0.5f - 120, y + 120, 240, 44), "MAIN MENU", bigButton) && GameBootstrap.I) GameBootstrap.I.ReturnToMenu();
+            }
         }
 
         void DrawEnd(GameManager gm, float W, float H)
         {
+            EnsureButtonStyle();
             Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.6f));
             string title = gm.State == GameState.Won ? "VICTORY" : "DEFEAT";
-            GUI.Label(new Rect(0, H * 0.35f, W, 60), title, big);
-            GUI.Label(new Rect(0, H * 0.35f + 60, W, 40), gm.EndReason, medium);
-            GUI.Label(new Rect(0, H * 0.35f + 100, W, 40), $"Enemies destroyed: {gm.Kills}     Score: {KillFeed.Score}", medium);
-            GUI.Label(new Rect(0, H * 0.35f + 150, W, 40), "Enter  play again      M  main menu", medium);
+            GUI.Label(new Rect(0, H * 0.25f, W, 60), title, big);
+            GUI.Label(new Rect(0, H * 0.25f + 60, W, 40), gm.EndReason, medium);
+            GUI.Label(new Rect(0, H * 0.25f + 100, W, 40), $"Enemies destroyed: {gm.Kills}     Score: {KillFeed.Score}", medium);
+            float y = H * 0.25f + 160;
+            if (GUI.Button(new Rect(W * 0.5f - 250, y, 240, 56), "PLAY AGAIN", bigButton) && GameBootstrap.I) GameBootstrap.I.Restart();
+            if (GUI.Button(new Rect(W * 0.5f + 10, y, 240, 56), "MAIN MENU", bigButton) && GameBootstrap.I) GameBootstrap.I.ReturnToMenu();
+            if (!GameInput.TouchMode) GUI.Label(new Rect(0, y + 64, W, 30), "Enter  play again      M  main menu", small.Centered());
         }
     }
 

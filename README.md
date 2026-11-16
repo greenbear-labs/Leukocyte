@@ -18,6 +18,12 @@ The prototype uses the classic Input Manager. If you see input errors, set **Edi
 
 You can also drop the `GameBootstrap` component on an empty GameObject in any empty scene and press Play.
 
+## Web, phones and the Green Bear Arcade
+
+**Leukocyte > Build WebGL (for the Arcade)** (or `-executeMethod Leukocyte.EditorTools.BuildScript.BuildWebGL` in batch mode) writes `Builds/WebGL/Build/WebGL.*`. Copy the four files into `games/leukocyte/Build` in the [Arcade](https://github.com/greenbear-labs/Arcade) repo.
+
+On phones and tablets the game switches to touch controls: drag on the left to move (push to the edge to sprint), drag on the right to look, and hold FIRE while dragging to aim. There are buttons for jump, reload, the class ability, grab, squad and zoom, plus a pause button. All screens scale to fit the display, and shadows and unit counts are reduced on mobile.
+
 ## Controls
 
 | Action | Key |
@@ -52,7 +58,7 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 
 - Germs pour in from the **Wound Breach** at the far end of the artery.
 - They hunt you when you're close; otherwise they float toward the three pink **Tissue Nodes**. Every germ that touches a node drains **Host Vitals**.
-- Survive all five waves to win. You lose if Host Vitals hit 0 or you run out of reinforcements (3 lives).
+- Survive all six waves, including the Spore Mother boss wave, to win. You lose if Host Vitals hit 0 or you run out of reinforcements (3 lives).
 - A gentle blood current pushes you back toward the Lymph Checkpoint, and red blood cells drift past for flow.
 
 ## Classes
@@ -71,6 +77,7 @@ Pick on the main menu, or press Tab on the pause or respawn screen. A change app
 | --- | --- | --- |
 | Swarmer (green bacterium) | Fast, zig-zags in packs, melee bites for 8 | 30 |
 | Spitter (violet virus) | Holds 12 to 20 m away, strafes, lobs dodgeable acid globs for 12 | 60 |
+| Spore Mother (boss) | Huge drifting pod. Births Swarmers, fires 5-glob spore volleys, and shockwaves anyone close once below half health. Final wave of Artery Defense; in Tissue War she leaves the hive when the infection drops to 60 tickets, and killing her costs them 25 more | 2200 / 3000 |
 | Brute (amber fungal hulk) | Slow tank. Swells up, then slams the ground for up to 30 in a 4.5 m radius | 400 |
 
 ## Feedback and audio

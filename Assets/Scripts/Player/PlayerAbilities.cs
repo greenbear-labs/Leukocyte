@@ -67,13 +67,13 @@ namespace Leukocyte
             var gm = GameManager.I;
             if (!gm || gm.State != GameState.Playing || owner.Hp.IsDead || !owner.InputEnabled) return;
 
-            if (Input.GetKeyDown(KeyCode.G))
+            if (GameInput.Ability)
             {
                 if (ability == Ability.AntibodyTag) Tag();
                 else ThrowBurst();
             }
-            if (Input.GetKeyDown(KeyCode.F)) Grab();
-            if (Input.GetKeyDown(KeyCode.Q)) SquadOrder();
+            if (GameInput.Grab) Grab();
+            if (GameInput.Squad) SquadOrder();
         }
 
         void ThrowBurst()

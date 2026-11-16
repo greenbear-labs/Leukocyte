@@ -16,6 +16,21 @@ namespace Leukocyte.EditorTools
         [MenuItem("Leukocyte/Build macOS App")]
         public static void BuildMac() => Build(BuildTarget.StandaloneOSX, "Builds/Leukocyte.app");
 
+        /// <summary>WebGL build for the Green Bear Arcade. Writes Builds/WebGL/Build/WebGL.{loader.js,framework.js.unityweb,data.unityweb,wasm.unityweb};
+        /// copy those four files into the Arcade repo's games/leukocyte/Build.
+        /// Batch: -executeMethod Leukocyte.EditorTools.BuildScript.BuildWebGL [-buildPath Builds/WebGL]</summary>
+        [MenuItem("Leukocyte/Build WebGL (for the Arcade)")]
+        public static void BuildWebGL()
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.nameFilesAsHashes = false;
+            PlayerSettings.WebGL.dataCaching = false; // the Arcade's service worker handles caching
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.runInBackground = false;
+            Build(BuildTarget.WebGL, "Builds/WebGL");
+        }
+
         [MenuItem("Leukocyte/Build Windows Player")]
         public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/Leukocyte.exe");
 
@@ -36,7 +51,7 @@ namespace Leukocyte.EditorTools
 
             PlayerSettings.productName = "Leukocyte";
             PlayerSettings.companyName = "greenbear-labs";
-            PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+            if (target != BuildTarget.WebGL) PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
             PlayerSettings.defaultScreenWidth = 1600;
             PlayerSettings.defaultScreenHeight = 900;
 

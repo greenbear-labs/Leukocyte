@@ -17,6 +17,7 @@ namespace Leukocyte
             public int swarmers;
             public int spitters;
             public int brutes;
+            public bool boss;
             public float spawnInterval;
         }
 
@@ -27,6 +28,7 @@ namespace Leukocyte
             new Wave { swarmers = 10, spitters = 3, spawnInterval = 0.7f },
             new Wave { swarmers = 12, spitters = 5, brutes = 1, spawnInterval = 0.6f },
             new Wave { swarmers = 14, spitters = 6, brutes = 2, spawnInterval = 0.5f },
+            new Wave { swarmers = 6, spitters = 4, boss = true, spawnInterval = 0.9f },
         };
 
         public float firstDelay = 6f;
@@ -78,6 +80,12 @@ namespace Leukocyte
                 {
                     int j = Random.Range(0, s + 1);
                     (queue[s], queue[j]) = (queue[j], queue[s]);
+                }
+
+                if (waves[i].boss)
+                {
+                    GermFactory.SporeMother(Level.Clamp(breach + new Vector3(0f, 1f, -6f)), 2200f);
+                    if (GameManager.I && GameManager.I.Hud) KillFeed.Add("THE SPORE MOTHER HAS BREACHED THE WOUND", new Color(0.95f, 0.5f, 1f));
                 }
 
                 PendingSpawns = queue.Count;

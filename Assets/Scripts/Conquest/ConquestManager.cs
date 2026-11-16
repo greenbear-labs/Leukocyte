@@ -29,6 +29,9 @@ namespace Leukocyte
         /// <summary>Index into PlayerSpawnOptions chosen on the respawn screen.</summary>
         public int PlayerSpawnChoice { get; set; } = -1;
 
+        public int bossTicketThreshold = 60;
+        public float bossHealth = 3000f;
+        bool bossSpawned;
         float bleedTimer;
         float reinforceTimer;
 
@@ -41,6 +44,11 @@ namespace Leukocyte
             ImmuneHQ = immuneHQ;
             InfectionHQ = infectionHQ;
             Tickets[0] = Tickets[1] = startTickets;
+            if (Application.isMobilePlatform)
+            {
+                maxImmuneBots = 7;
+                maxGerms = 12;
+            }
 
             // Opening squads.
             for (int i = 0; i < 6; i++) SpawnBot();
@@ -72,10 +80,29 @@ namespace Leukocyte
             {
                 reinforceTimer = 0f;
                 if (ImmuneBot.All.Count < maxImmuneBots && Tickets[(int)Team.Immune] > 0) SpawnBot();
-                if (Germ.Alive.Count < maxGerms && Tickets[(int)Team.Infection] > 0) SpawnGerm();
+                if (Germ.Alive.Count < maxGerms - 2 && Tickets[(int)Team.Infection] > 0) SpawnGermSquad();
+            }
+
+            // Late in the fight the hive throws its boss at the front.
+            if (!bossSpawned && Tickets[(int)Team.Infection] <= bossTicketThreshold)
+            {
+                bossSpawned = true;
+                var hive = InfectionHQ.transform.position;
+                GermFactory.SporeMother(new Vector3(hive.x, 6f, hive.z - 6f), bossHealth);
+                Announce("THE SPORE MOTHER HAS AWAKENED");
+                KillFeed.Add("The Spore Mother is coming from the hive", new Color(0.95f, 0.5f, 1f));
+                Sfx.UI(() => Sfx.CaptureBad, 0.8f, 0f, 0.6f);
             }
 
             CheckEnd(gm);
+        }
+
+        public void OnBossDied(int ticketValue)
+        {
+            Tickets[(int)Team.Infection] = Mathf.Max(0, Tickets[(int)Team.Infection] - ticketValue);
+            Announce("THE SPORE MOTHER IS DEAD");
+            KillFeed.Add($"Spore Mother destroyed: infection loses {ticketValue} tickets", new Color(0.95f, 0.5f, 1f));
+            Sfx.UI(() => Sfx.CaptureGood, 0.9f, 0f, 0.8f);
         }
 
         void CheckEnd(GameManager gm)
@@ -213,15 +240,27 @@ namespace Leukocyte
             ImmuneBot.Create(Around(o, 0f));
         }
 
-        void SpawnGerm()
+        /// <summary>Germs arrive in squads of 3 that share one objective, so they hit outposts together.</summary>
+        void SpawnGermSquad()
         {
             var o = Random.value < 0.6f ? FrontSpawn(Team.Infection) : RandomOption(Team.Infection);
+            int seed = Random.Range(0, 100000);
+            for (int i = 0; i < 3; i++)
+            {
+                var g = SpawnGerm(o);
+                if (g) g.SetSquadSeed(seed + i * 120);
+            }
+        }
+
+        Germ SpawnGerm(Outpost o = null)
+        {
+            if (!o) o = Random.value < 0.6f ? FrontSpawn(Team.Infection) : RandomOption(Team.Infection);
             var pos = Around(o, Random.Range(1.2f, 3f));
             float roll = Random.value;
             int brutes = Germ.Alive.Count(g => g is Brute);
-            if (roll < bruteShare && brutes < maxBrutes) GermFactory.Brute(pos);
-            else if (roll < bruteShare + spitterShare) GermFactory.Spitter(pos);
-            else GermFactory.Swarmer(pos);
+            if (roll < bruteShare && brutes < maxBrutes) return GermFactory.Brute(pos);
+            if (roll < bruteShare + spitterShare) return GermFactory.Spitter(pos);
+            return GermFactory.Swarmer(pos);
         }
 
         Outpost RandomOption(Team team)

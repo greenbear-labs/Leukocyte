@@ -46,6 +46,9 @@ namespace Leukocyte
             unitSeed = Random.Range(0, 100000);
         }
 
+        /// <summary>Germs in a squad share an objective (same seed modulo the target choice).</summary>
+        public void SetSquadSeed(int seed) { unitSeed = seed; }
+
         void OnEnable() { Alive.Add(this); }
         void OnDisable() { Alive.Remove(this); }
 

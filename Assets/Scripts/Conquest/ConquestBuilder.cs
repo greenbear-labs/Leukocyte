@@ -109,7 +109,7 @@ namespace Leukocyte
             sun.type = LightType.Directional;
             sun.intensity = 0.9f;
             sun.color = new Color(1f, 0.85f, 0.85f);
-            sun.shadows = LightShadows.Soft;
+            sun.shadows = Application.isMobilePlatform ? LightShadows.None : LightShadows.Soft;
         }
 
         static bool Clear(Vector3 p, float margin)

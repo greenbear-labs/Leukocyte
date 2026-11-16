@@ -124,14 +124,15 @@ namespace Leukocyte
             if (!cm) return;
 
             var options = cm.SpawnOptions(Team.Immune);
-            GUI.Label(new Rect(0, H * 0.3f + 120, W, 30), "Choose a spawn point (number keys). Default is the front line.", small.Center());
+            GUI.Label(new Rect(0, H * 0.3f + 120, W, 30), GameInput.TouchMode ? "Tap a spawn point. Default is the front line." : "Choose a spawn point (number keys or click). Default is the front line.", small.Center());
             for (int i = 0; i < options.Count && i < 9; i++)
             {
                 string label = options[i].isHQ ? "Corps HQ" : $"Outpost {options[i].letter}";
                 bool chosen = cm.PlayerSpawnChoice == i;
-                var row = new Rect(W * 0.5f - 120, H * 0.3f + 150 + i * 30, 240, 26);
+                var row = new Rect(W * 0.5f - 130, H * 0.3f + 150 + i * 36, 260, 32);
                 Fill(row, chosen ? new Color(0.3f, 0.55f, 0.9f, 0.8f) : new Color(0f, 0f, 0f, 0.5f));
-                GUI.Label(row, $"[{i + 1}]  {label}", tiny);
+                GUI.Label(row, GameInput.TouchMode ? label : $"[{i + 1}]  {label}", tiny);
+                if (GUI.Button(row, GUIContent.none, GUIStyle.none)) cm.PlayerSpawnChoice = i;
             }
         }
     }

@@ -27,7 +27,7 @@ namespace Leukocyte
         public void MarkEngaged() { freshSpawn = false; }
         public Vector3 Velocity { get; private set; }
         public bool Sprinting { get; private set; }
-        public bool InputEnabled => Cursor.lockState == CursorLockMode.Locked;
+        public bool InputEnabled => GameInput.Active;
 
         static readonly Vector3 EyeOffset = new Vector3(0f, 1.6f, 0f);
 
@@ -71,6 +71,8 @@ namespace Leukocyte
 
         public static void LockCursor()
         {
+            GameInput.TouchPaused = false;
+            if (GameInput.TouchMode) return;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
@@ -86,8 +88,11 @@ namespace Leukocyte
             var gm = GameManager.I;
             if (!gm || gm.State != GameState.Playing) return;
 
-            if (Input.GetKeyDown(KeyCode.Escape)) UnlockCursor();
-            else if (!InputEnabled && Input.GetMouseButtonDown(0)) LockCursor();
+            if (!GameInput.TouchMode)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape)) UnlockCursor();
+                else if (!InputEnabled && Input.GetMouseButtonDown(0)) LockCursor();
+            }
 
             float dt = Time.deltaTime;
 
@@ -105,8 +110,9 @@ namespace Leukocyte
             if (InputEnabled)
             {
                 float sens = mouseSensitivity * (Rifle.Zoomed ? 0.35f : 1f);
-                transform.Rotate(0f, Input.GetAxis("Mouse X") * sens, 0f);
-                pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * sens, -85f, 85f);
+                Vector2 look = GameInput.Look;
+                transform.Rotate(0f, look.x * sens, 0f);
+                pitch = Mathf.Clamp(pitch - look.y * sens, -85f, 85f);
             }
             // Screen shake and sprint field of view.
             trauma = Mathf.Max(0f, trauma - 1.5f * dt);
@@ -119,9 +125,12 @@ namespace Leukocyte
 
             Vector3 input = Vector3.zero;
             if (InputEnabled)
-                input = Vector3.ClampMagnitude(new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical")), 1f);
+            {
+                Vector2 m = GameInput.Move;
+                input = new Vector3(m.x, 0f, m.y);
+            }
 
-            Sprinting = Input.GetKey(KeyCode.LeftShift) && input.z > 0.1f;
+            Sprinting = GameInput.Sprint && input.z > 0.1f;
             Vector3 wish = transform.TransformDirection(input) * walkSpeed * (Sprinting ? sprintMultiplier : 1f);
 
             bool grounded = cc.isGrounded;
@@ -131,7 +140,7 @@ namespace Leukocyte
             if (grounded)
             {
                 if (verticalSpeed < 0f) verticalSpeed = -2f;
-                if (InputEnabled && Input.GetButtonDown("Jump")) verticalSpeed = jumpSpeed;
+                if (InputEnabled && GameInput.Jump) verticalSpeed = jumpSpeed;
             }
             verticalSpeed -= gravity * dt;
 

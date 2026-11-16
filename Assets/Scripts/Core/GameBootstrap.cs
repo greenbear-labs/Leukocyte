@@ -17,7 +17,17 @@ namespace Leukocyte
         bool inMenu = true;
         GUIStyle title, subtitle, button, caption, classButton, selectedClass;
 
-        void Awake() { I = this; }
+        void Awake()
+        {
+            I = this;
+            gameObject.AddComponent<TouchControls>();
+            GameInput.Refresh();
+            if (Application.isMobilePlatform)
+            {
+                Application.targetFrameRate = 60;
+                QualitySettings.shadows = ShadowQuality.Disable;
+            }
+        }
 
         void Start()
         {
@@ -63,6 +73,7 @@ namespace Leukocyte
         IEnumerator BuildRoutine(GameMode mode)
         {
             inMenu = false;
+            GameInput.TouchPaused = false;
             if (level) Destroy(level);
             yield return null;
             if (menuCamera) menuCamera.SetActive(false);
@@ -91,7 +102,8 @@ namespace Leukocyte
         {
             if (!inMenu) return;
             EnsureStyles();
-            float W = Screen.width, H = Screen.height, cx = W * 0.5f;
+            UiScale.Apply();
+            float W = UiScale.Width, H = UiScale.Height, cx = W * 0.5f;
 
             GUI.Label(new Rect(0, H * 0.06f, W, 90), "LEUKOCYTE", title);
             GUI.Label(new Rect(0, H * 0.06f + 84, W, 30), "The Immune Corps needs you. The Host is under attack.", subtitle);
@@ -99,7 +111,7 @@ namespace Leukocyte
             float bw = 420f, bh = 60f, y = H * 0.06f + 140f;
             if (GUI.Button(new Rect(cx - bw * 0.5f, y, bw, bh), "ARTERY DEFENSE", button)) Play(GameMode.ArteryDefense);
             GUI.Label(new Rect(cx - bw * 0.5f, y + bh + 4, bw, 40),
-                "Solo. Hold the femoral artery against five escalating germ waves.", caption);
+                "Solo. Hold the femoral artery through five germ waves, then kill the Spore Mother.", caption);
 
             y += bh + 60f;
             if (GUI.Button(new Rect(cx - bw * 0.5f, y, bw, bh), "TISSUE WAR", button)) Play(GameMode.TissueWar);
@@ -121,7 +133,7 @@ namespace Leukocyte
             }
 
             y += 120f;
-            if (GUI.Button(new Rect(cx - 100, y, 200, 40), "QUIT")) Application.Quit();
+            if (Application.platform != RuntimePlatform.WebGLPlayer && GUI.Button(new Rect(cx - 100, y, 200, 40), "QUIT")) Application.Quit();
         }
     }
 }

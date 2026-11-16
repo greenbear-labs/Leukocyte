@@ -75,6 +75,37 @@ namespace Leukocyte
             return brute;
         }
 
+        public static SporeMother SporeMother(Vector3 position, float hp)
+        {
+            var root = NewRoot("SporeMother", position, hp);
+            var pod = new Color(0.6f, 0.3f, 0.7f);
+            var cap = new Color(0.85f, 0.6f, 0.25f);
+            var glow = new Color(0.95f, 0.4f, 1f);
+
+            Greybox.Prim(PrimitiveType.Sphere, "Pod", root, Vector3.zero, new Vector3(5.5f, 4.5f, 5.5f), pod, ColliderMode.Keep, 0.25f);
+            for (int i = 0; i < 14; i++)
+            {
+                var dir = Random.onUnitSphere;
+                Greybox.Prim(PrimitiveType.Sphere, "SporeSac", root, dir * 2.5f, Vector3.one * Random.Range(0.7f, 1.4f),
+                    i % 3 == 0 ? glow : cap, ColliderMode.None, i % 3 == 0 ? 1.5f : 0.2f);
+            }
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * 60f;
+                var t = Greybox.Prim(PrimitiveType.Capsule, "Tendril", root,
+                    Quaternion.Euler(0f, a, 0f) * new Vector3(0f, -2.6f, 1.8f), new Vector3(0.4f, 1.6f, 0.4f), pod, ColliderMode.None);
+                t.transform.localRotation = Quaternion.Euler(0f, a, 0f) * Quaternion.Euler(30f, 0f, 0f);
+            }
+            var l = new GameObject("BossGlow").AddComponent<Light>();
+            l.transform.SetParent(root, false);
+            l.type = LightType.Point;
+            l.range = 18f;
+            l.intensity = 2f;
+            l.color = glow;
+            root.GetComponent<Combatant>().aimHeight = 0f;
+            return root.gameObject.AddComponent<SporeMother>();
+        }
+
         static Transform NewRoot(string name, Vector3 position, float hp)
         {
             var go = new GameObject(name);

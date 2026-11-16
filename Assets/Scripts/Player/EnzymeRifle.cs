@@ -87,7 +87,7 @@ namespace Leukocyte
             var gm = GameManager.I;
             bool canAct = gm && gm.State == GameState.Playing && !owner.Hp.IsDead && owner.InputEnabled;
 
-            Zoomed = canAct && Profile.zoomFov > 0f && !Reloading && !owner.Sprinting && Input.GetMouseButton(1);
+            Zoomed = canAct && Profile.zoomFov > 0f && !Reloading && !owner.Sprinting && GameInput.Zoom;
 
             if (Reloading)
             {
@@ -96,8 +96,8 @@ namespace Leukocyte
             }
             else if (canAct)
             {
-                bool trigger = Profile.automatic ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
-                if (Input.GetKeyDown(KeyCode.R) && Ammo < Profile.magazineSize) StartReload();
+                bool trigger = Profile.automatic ? GameInput.FireHeld : GameInput.FirePressed;
+                if (GameInput.Reload && Ammo < Profile.magazineSize) StartReload();
                 else if (trigger && Time.time >= nextFireTime)
                 {
                     if (Ammo > 0) Fire();
