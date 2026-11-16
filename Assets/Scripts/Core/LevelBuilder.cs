@@ -36,6 +36,9 @@ namespace Leukocyte
             BloodFlow(root.transform);
 
             var gm = root.AddComponent<GameManager>();
+            // Colliders built this frame aren't moved/scaled in the physics scene until the next
+            // simulation step; sync now so the floor exists before the player's first move.
+            Physics.SyncTransforms();
             var player = PlayerRig(root.transform, PlayerSpawn, Quaternion.identity, FogColor);
             var waves = root.AddComponent<WaveManager>();
             var hud = root.AddComponent<Hud>();

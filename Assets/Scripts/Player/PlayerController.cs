@@ -94,7 +94,9 @@ namespace Leukocyte
                 else if (!InputEnabled && Input.GetMouseButtonDown(0)) LockCursor();
             }
 
-            float dt = Time.deltaTime;
+            // Cap the step so a long frame (level build, shader warm-up on WebGL) can't carry the
+            // controller through the floor in one move.
+            float dt = Mathf.Min(Time.deltaTime, 1f / 30f);
 
             // Before your first shot or hit after deploying, you can still swap class freely.
             if (freshSpawn && !Hp.IsDead && ClassProfile.Selected != Class.id) ApplyClass(ClassProfile.Get(ClassProfile.Selected));
@@ -134,6 +136,8 @@ namespace Leukocyte
             Vector3 wish = transform.TransformDirection(input) * walkSpeed * (Sprinting ? sprintMultiplier : 1f);
 
             bool grounded = cc.isGrounded;
+            if (grounded) lastGrounded = transform.position;
+            else if (transform.position.y < FallLimit) { Recover(); return; }
             float accel = (grounded ? 12f : 4f) * walkSpeed;
             momentum = Vector3.MoveTowards(momentum, wish, accel * dt);
 
@@ -161,6 +165,24 @@ namespace Leukocyte
             pitch = Mathf.Clamp(pitch - degrees, -85f, 85f);
         }
 
+        const float FallLimit = -6f;
+        Vector3 lastGrounded;
+        bool hasSpawnPoint;
+        Vector3 spawnPosition;
+
+        /// <summary>Safety net: if the player ever ends up under the floor, put them back on solid
+        /// ground instead of letting them fall forever.</summary>
+        void Recover()
+        {
+            Vector3 to = lastGrounded != Vector3.zero ? lastGrounded : hasSpawnPoint ? spawnPosition : new Vector3(transform.position.x, 0f, transform.position.z);
+            cc.enabled = false;
+            transform.position = to + Vector3.up * 0.5f;
+            cc.enabled = true;
+            Physics.SyncTransforms();
+            verticalSpeed = 0f;
+            momentum = Vector3.zero;
+        }
+
         public void Respawn(Vector3 position) => Respawn(position, Quaternion.identity);
 
         public void Respawn(Vector3 position, Quaternion facing)
@@ -168,6 +190,10 @@ namespace Leukocyte
             cc.enabled = false;
             transform.SetPositionAndRotation(position, facing);
             cc.enabled = true;
+            Physics.SyncTransforms();
+            spawnPosition = position;
+            hasSpawnPoint = true;
+            lastGrounded = position;
             pitch = 0f;
             verticalSpeed = 0f;
             momentum = Vector3.zero;

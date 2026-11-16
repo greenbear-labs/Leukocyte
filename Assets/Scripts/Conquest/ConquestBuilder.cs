@@ -64,6 +64,9 @@ namespace Leukocyte
             player.bloodCurrent = Vector3.zero;
             player.Cam.farClipPlane = 400f;
             var hud = root.AddComponent<ConquestHud>();
+            // Colliders built this frame aren't moved/scaled in the physics scene until the next
+            // simulation step; sync now so the floor exists before the player's first move.
+            Physics.SyncTransforms();
             gm.Init(GameMode.TissueWar, player, hud, spawn);
             conquest.Init(outposts, immuneHQ, infectionHQ);
             return root;
