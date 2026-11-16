@@ -40,7 +40,7 @@ namespace Leukocyte
             {
                 if (biteTimer <= 0f)
                 {
-                    target.Hp.Damage(biteDamage);
+                    target.Hp.Damage(biteDamage, transform.position);
                     biteTimer = biteCooldown;
                 }
                 Steer(dir, 1f, dt);

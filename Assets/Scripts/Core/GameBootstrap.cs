@@ -22,7 +22,7 @@ namespace Leukocyte
         void Start()
         {
             // Our levels bring their own camera; hide any default scene camera.
-            foreach (var cam in FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            foreach (var cam in Camera.allCameras)
                 if (cam.gameObject != gameObject) cam.gameObject.SetActive(false);
             ShowMenu();
         }
@@ -67,6 +67,7 @@ namespace Leukocyte
             yield return null;
             if (menuCamera) menuCamera.SetActive(false);
             Random.InitState(seed + (int)mode);
+            KillFeed.Reset();
             level = mode == GameMode.TissueWar ? ConquestBuilder.Build() : LevelBuilder.Build();
         }
 

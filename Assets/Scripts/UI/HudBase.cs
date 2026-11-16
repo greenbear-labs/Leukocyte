@@ -9,6 +9,8 @@ namespace Leukocyte
         protected bool hitWasKill;
         protected float hurtTimer;
         protected float hostFlashTimer;
+        float damageIndicatorTimer;
+        Vector3 damageFrom;
         bool subscribed;
 
         protected GUIStyle big, medium, small, smallRight, tiny;
@@ -30,7 +32,15 @@ namespace Leukocyte
             var gm = GameManager.I;
             if (!subscribed && gm && gm.Player)
             {
-                gm.Player.Hp.Damaged += _ => hurtTimer = 0.35f;
+                gm.Player.Hp.Damaged += _ =>
+                {
+                    hurtTimer = 0.35f;
+                    if (gm.Player.Hp.LastHitFrom.HasValue)
+                    {
+                        damageFrom = gm.Player.Hp.LastHitFrom.Value;
+                        damageIndicatorTimer = 1.2f;
+                    }
+                };
                 subscribed = true;
             }
 
@@ -38,6 +48,7 @@ namespace Leukocyte
             hitTimer -= dt;
             hurtTimer -= dt;
             hostFlashTimer -= dt;
+            damageIndicatorTimer -= dt;
         }
 
         protected void EnsureStyles()
@@ -80,7 +91,13 @@ namespace Leukocyte
 
             if (hurtTimer > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtTimer));
 
-            if (gm.State == GameState.Playing && !player.Hp.IsDead) DrawCrosshair(W, H);
+            if (gm.State == GameState.Playing && !player.Hp.IsDead)
+            {
+                DrawCrosshair(W, H);
+                DrawDamageIndicator(player, W, H);
+                DrawAbilities(player, W, H);
+            }
+            DrawKillFeed(W, H);
 
             DrawModeHud(gm, W, H);
             DrawPlayerStatus(gm, W, H);
@@ -120,6 +137,56 @@ namespace Leukocyte
             }
         }
 
+        /// <summary>Red marker around the crosshair pointing toward the last damage source.</summary>
+        void DrawDamageIndicator(PlayerController player, float W, float H)
+        {
+            if (damageIndicatorTimer <= 0f) return;
+            Vector3 to = damageFrom - player.transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude < 0.01f) return;
+            float angle = Vector3.SignedAngle(player.transform.forward, to, Vector3.up);
+            var pivot = new Vector2(W * 0.5f, H * 0.5f);
+            var old = GUI.matrix;
+            GUIUtility.RotateAroundPivot(angle, pivot);
+            float a = Mathf.Clamp01(damageIndicatorTimer);
+            Fill(new Rect(pivot.x - 40, pivot.y - 150, 80, 10), new Color(1f, 0.15f, 0.1f, 0.85f * a));
+            Fill(new Rect(pivot.x - 20, pivot.y - 162, 40, 8), new Color(1f, 0.15f, 0.1f, 0.6f * a));
+            GUI.matrix = old;
+        }
+
+        void DrawAbilities(PlayerController player, float W, float H)
+        {
+            var ab = player.Abilities;
+            if (!ab) return;
+            float x = W - 316, y = H - 112;
+            string burst = $"[G] CYTOKINE BURST  x{ab.BurstCharges}";
+            GUI.Label(new Rect(x, y, 300, 22), burst, smallRight);
+            if (ab.BurstCharges < ab.burstCharges)
+                Fill(new Rect(x + 150, y + 20, 150 * Mathf.Clamp01(ab.BurstRechargeProgress), 3), new Color(1f, 0.85f, 0.35f));
+            string grab = ab.GrabReady >= 1f ? "[F] PHAGOCYTE GRAB  READY" : "[F] PHAGOCYTE GRAB";
+            GUI.Label(new Rect(x, y + 24, 300, 22), grab, smallRight);
+            if (ab.GrabReady < 1f)
+                Fill(new Rect(x + 150, y + 44, 150 * ab.GrabReady, 3), ImmuneBlue);
+        }
+
+        protected virtual float KillFeedTop => 16f;
+
+        void DrawKillFeed(float W, float H)
+        {
+            float y = KillFeedTop;
+            for (int i = KillFeed.Entries.Count - 1; i >= 0; i--)
+            {
+                var e = KillFeed.Entries[i];
+                float age = Time.time - e.time;
+                if (age > 5f) continue;
+                var c = e.color;
+                c.a = Mathf.Clamp01(5f - age);
+                var style = new GUIStyle(smallRight) { normal = { textColor = c } };
+                GUI.Label(new Rect(W - 416, y, 400, 22), e.text, style);
+                y += 22f;
+            }
+        }
+
         void DrawPlayerStatus(GameManager gm, float W, float H)
         {
             var player = gm.Player;
@@ -139,8 +206,10 @@ namespace Leukocyte
             Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.5f));
             GUI.Label(new Rect(0, H * 0.38f, W, 60), "Click to deploy", big);
             GUI.Label(new Rect(0, H * 0.38f + 60, W, 40),
-                "WASD move   Shift sprint   Space jump   Mouse aim   LMB fire   R reload   Esc release mouse", medium);
-            GUI.Label(new Rect(0, H * 0.38f + 100, W, 40), "M  main menu", medium);
+                "WASD move   Shift sprint   Space jump   Mouse aim   LMB fire   R reload", medium);
+            GUI.Label(new Rect(0, H * 0.38f + 130, W, 40),
+                "G Cytokine Burst (grenade)   F Phagocyte Grab (engulf a weakened germ to heal)   Esc release mouse", medium);
+            GUI.Label(new Rect(0, H * 0.38f + 170, W, 40), "M  main menu", medium);
         }
 
         void DrawEnd(GameManager gm, float W, float H)
@@ -149,7 +218,7 @@ namespace Leukocyte
             string title = gm.State == GameState.Won ? "VICTORY" : "DEFEAT";
             GUI.Label(new Rect(0, H * 0.35f, W, 60), title, big);
             GUI.Label(new Rect(0, H * 0.35f + 60, W, 40), gm.EndReason, medium);
-            GUI.Label(new Rect(0, H * 0.35f + 100, W, 40), $"Enemies destroyed: {gm.Kills}", medium);
+            GUI.Label(new Rect(0, H * 0.35f + 100, W, 40), $"Enemies destroyed: {gm.Kills}     Score: {KillFeed.Score}", medium);
             GUI.Label(new Rect(0, H * 0.35f + 150, W, 40), "Enter  play again      M  main menu", medium);
         }
     }

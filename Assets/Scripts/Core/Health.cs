@@ -10,6 +10,9 @@ namespace Leukocyte
         public float Current { get; private set; }
         public bool IsDead => Current <= 0f;
 
+        /// <summary>World position the most recent damage came from, if known.</summary>
+        public Vector3? LastHitFrom { get; private set; }
+
         public event Action<float> Damaged;
         public event Action Died;
 
@@ -27,6 +30,13 @@ namespace Leukocyte
         {
             if (IsDead) return;
             Current = Mathf.Min(max, Current + amount);
+        }
+
+        public void Damage(float amount, Vector3 from)
+        {
+            if (IsDead || amount <= 0f) return;
+            LastHitFrom = from;
+            Damage(amount);
         }
 
         public void Damage(float amount)

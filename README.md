@@ -27,6 +27,8 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 | Jump | Space |
 | Fire Enzyme Rifle | Left mouse |
 | Reload | R |
+| Cytokine Burst (bouncing grenade, 2 charges, 12 s recharge) | G |
+| Phagocyte Grab (engulf a weakened germ to heal 30, or punch a healthy one) | F |
 | Release mouse | Esc (click to recapture) |
 | Choose spawn point (Tissue War, while down) | 1-9 |
 | Main menu (paused or after a match) | M |
@@ -54,6 +56,11 @@ You can also drop the `GameBootstrap` component on an empty GameObject in any em
 | --- | --- | --- |
 | Swarmer (green bacterium) | Fast, zig-zags in packs, melee bites for 8 | 30 |
 | Spitter (violet virus) | Holds 12 to 20 m away, strafes, lobs dodgeable acid globs for 12 | 60 |
+| Brute (amber fungal hulk) | Slow tank. Swells up, then slams the ground for up to 30 in a 4.5 m radius | 400 |
+
+## Feedback and audio
+
+All sounds are synthesized in code (`Core/Sfx.cs`) as placeholders. The HUD has a kill feed with score, a red marker showing where damage came from, and ability cooldowns. The camera shakes on hits and explosions and widens slightly while sprinting.
 
 ## Code layout
 

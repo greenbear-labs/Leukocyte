@@ -5,7 +5,9 @@ namespace Leukocyte
     /// <summary>Tissue War HUD: tickets, outpost strip, capture status, minimap and spawn picker.</summary>
     public class ConquestHud : HudBase
     {
-        protected override string LivesLine(GameManager gm) => "";
+        protected override string LivesLine(GameManager gm) => $"Score: {KillFeed.Score}";
+
+        protected override float KillFeedTop => 220f;
 
         protected override void Update()
         {

@@ -149,10 +149,11 @@ namespace Leukocyte
 
             float hitChance = Mathf.Lerp(0.65f, 0.2f, dist / sightRange);
             Vector3 aim = target.AimPoint;
-            if (Random.value < hitChance) target.Hp.Damage(damage);
+            if (Random.value < hitChance) target.Hp.Damage(damage, Eye);
             else aim += Random.insideUnitSphere * 1.5f;
 
             Fader.Tracer(muzzle.position, aim, BoltColor);
+            Sfx.At(() => Sfx.BotShot, muzzle.position, 0.25f, 0.15f);
         }
 
         void Move(Vector3 dir, float moveSpeed, float dt, Vector3 face)
@@ -205,6 +206,7 @@ namespace Leukocyte
         void OnDied()
         {
             if (ConquestManager.I) ConquestManager.I.OnUnitDied(Team.Immune);
+            KillFeed.Add("Trooper lost", new Color(1f, 0.5f, 0.5f));
             Fader.Burst(transform.position + Vector3.up, new Color(0.85f, 0.9f, 1f), 10, 0.25f, 5f);
             Destroy(gameObject);
         }

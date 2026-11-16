@@ -16,6 +16,8 @@ namespace Leukocyte
         public int maxGerms = 18;
         public float reinforceInterval = 1.2f;
         [Range(0f, 1f)] public float spitterShare = 0.3f;
+        [Range(0f, 1f)] public float bruteShare = 0.1f;
+        public int maxBrutes = 3;
 
         public readonly int[] Tickets = new int[2];
         public readonly List<Outpost> Outposts = new List<Outpost>();
@@ -97,8 +99,20 @@ namespace Leukocyte
 
         public void OnOutpostChanged(Outpost outpost, Team? before)
         {
-            if (outpost.Owner == Team.Immune) Announce($"Outpost {outpost.letter} captured");
-            else if (outpost.Owner == Team.Infection) Announce($"Outpost {outpost.letter} lost to the infection");
+            if (outpost.Owner == Team.Immune)
+            {
+                Announce($"Outpost {outpost.letter} captured");
+                KillFeed.Add($"Outpost {outpost.letter} captured", new Color(0.45f, 0.75f, 1f));
+                Sfx.UI(() => Sfx.CaptureGood, 0.7f, 0f);
+                var gm = GameManager.I;
+                if (gm && gm.Player && !gm.Player.Hp.IsDead && outpost.Contains(gm.Player.transform.position)) KillFeed.AddScore(250);
+            }
+            else if (outpost.Owner == Team.Infection)
+            {
+                Announce($"Outpost {outpost.letter} lost to the infection");
+                KillFeed.Add($"Outpost {outpost.letter} lost", new Color(0.55f, 0.95f, 0.25f));
+                Sfx.UI(() => Sfx.CaptureBad, 0.7f, 0f);
+            }
             else if (before == Team.Immune) Announce($"Outpost {outpost.letter} is being taken");
             else Announce($"Outpost {outpost.letter} neutralized");
         }
@@ -189,7 +203,10 @@ namespace Leukocyte
         {
             var o = Random.value < 0.6f ? FrontSpawn(Team.Infection) : RandomOption(Team.Infection);
             var pos = Around(o, Random.Range(1.2f, 3f));
-            if (Random.value < spitterShare) GermFactory.Spitter(pos);
+            float roll = Random.value;
+            int brutes = Germ.Alive.Count(g => g is Brute);
+            if (roll < bruteShare && brutes < maxBrutes) GermFactory.Brute(pos);
+            else if (roll < bruteShare + spitterShare) GermFactory.Spitter(pos);
             else GermFactory.Swarmer(pos);
         }
 

@@ -57,6 +57,7 @@ namespace Leukocyte
                 fireTimer = fireCooldown;
                 Vector3 lead = aim + target.Velocity * (dist / globSpeed) * 0.5f;
                 AcidGlob.Launch(muzzle, (lead - muzzle).normalized * globSpeed, globDamage);
+                Sfx.At(() => Sfx.Spit, muzzle, 0.6f);
             }
         }
     }

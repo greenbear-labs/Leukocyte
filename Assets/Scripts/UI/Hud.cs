@@ -18,7 +18,7 @@ namespace Leukocyte
             string waveText = waves.CurrentWave == 0 ? "Infection incoming" : $"Wave {waves.CurrentWave}/{waves.TotalWaves}";
             GUI.Label(new Rect(16, 12, 400, 24), waveText, small);
             GUI.Label(new Rect(16, 34, 400, 24), $"Germs remaining: {waves.Remaining}", small);
-            GUI.Label(new Rect(16, 56, 400, 24), $"Kills: {gm.Kills}", small);
+            GUI.Label(new Rect(16, 56, 400, 24), $"Kills: {gm.Kills}   Score: {KillFeed.Score}", small);
 
             if (gm.State == GameState.Playing && !gm.Player.Hp.IsDead && waves.InBreak)
             {

@@ -17,6 +17,7 @@ namespace Leukocyte
         public Health Hp { get; private set; }
         public Camera Cam { get; private set; }
         public EnzymeRifle Rifle { get; private set; }
+        public PlayerAbilities Abilities { get; private set; }
         public Vector3 Velocity { get; private set; }
         public bool Sprinting { get; private set; }
         public bool InputEnabled => Cursor.lockState == CursorLockMode.Locked;
@@ -27,6 +28,8 @@ namespace Leukocyte
         Vector3 momentum;
         float verticalSpeed;
         float pitch;
+        float trauma;
+        float baseFov = -1f;
 
         public void Init(Camera cam)
         {
@@ -35,6 +38,13 @@ namespace Leukocyte
             Hp = GetComponent<Health>();
             Rifle = gameObject.AddComponent<EnzymeRifle>();
             Rifle.Init(this, cam);
+            Abilities = gameObject.AddComponent<PlayerAbilities>();
+            Abilities.Init(this);
+            Hp.Damaged += amount =>
+            {
+                AddShake(Mathf.Clamp01(amount / 30f) * 0.5f);
+                Sfx.UI(() => Sfx.Hurt, 0.8f);
+            };
             LockCursor();
         }
 
@@ -73,7 +83,13 @@ namespace Leukocyte
                 transform.Rotate(0f, Input.GetAxis("Mouse X") * mouseSensitivity, 0f);
                 pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * mouseSensitivity, -85f, 85f);
             }
-            Cam.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+            // Screen shake and sprint field of view.
+            trauma = Mathf.Max(0f, trauma - 1.5f * dt);
+            float shake = trauma * trauma;
+            Cam.transform.localRotation = Quaternion.Euler(pitch + Noise(1) * 4f * shake, Noise(2) * 4f * shake, Noise(3) * 6f * shake);
+            Cam.transform.localPosition = EyeOffset + new Vector3(Noise(4), Noise(5), 0f) * 0.12f * shake;
+            if (baseFov < 0f) baseFov = Cam.fieldOfView;
+            Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, Sprinting ? baseFov + 8f : baseFov, 8f * dt);
 
             Vector3 input = Vector3.zero;
             if (InputEnabled)
@@ -98,6 +114,13 @@ namespace Leukocyte
             Velocity = cc.velocity;
         }
 
+        public void AddShake(float amount)
+        {
+            trauma = Mathf.Clamp01(trauma + amount);
+        }
+
+        static float Noise(int seed) => Mathf.PerlinNoise(seed * 13.7f, Time.time * 25f) * 2f - 1f;
+
         public void AddRecoil(float degrees)
         {
             pitch = Mathf.Clamp(pitch - degrees, -85f, 85f);
@@ -117,6 +140,8 @@ namespace Leukocyte
             Cam.transform.localRotation = Quaternion.identity;
             Hp.ResetHealth();
             Rifle.Refill();
+            Abilities.Refill();
+            trauma = 0f;
         }
     }
 }

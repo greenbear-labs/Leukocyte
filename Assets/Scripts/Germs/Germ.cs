@@ -185,6 +185,7 @@ namespace Leukocyte
         {
             if (ConquestManager.I) ConquestManager.I.OnUnitDied(Team.Infection);
             Fader.Burst(transform.position, BloodColor, 10, 0.25f, 6f);
+            Sfx.At(() => Sfx.Squelch, transform.position, 0.5f);
             Destroy(gameObject);
         }
     }

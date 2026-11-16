@@ -48,6 +48,33 @@ namespace Leukocyte
             return root.gameObject.AddComponent<Spitter>();
         }
 
+        public static Brute Brute(Vector3 position)
+        {
+            var root = NewRoot("Brute", position, 400f);
+            var amber = new Color(0.85f, 0.55f, 0.2f);
+            var rot = new Color(0.45f, 0.25f, 0.1f);
+            var glow = new Color(1f, 0.85f, 0.3f);
+
+            Greybox.Prim(PrimitiveType.Sphere, "Body", root, Vector3.zero, new Vector3(2.6f, 2.2f, 2.6f), amber, ColliderMode.Keep, 0.2f);
+            for (int i = 0; i < 8; i++)
+            {
+                var dir = Random.onUnitSphere;
+                dir.y = Mathf.Abs(dir.y);
+                Greybox.Prim(PrimitiveType.Sphere, "SporeCap", root, dir * 1.15f, Vector3.one * Random.Range(0.5f, 0.9f), rot, ColliderMode.None);
+            }
+            Greybox.Prim(PrimitiveType.Sphere, "Eye", root, new Vector3(-0.45f, 0.35f, 1.15f), Vector3.one * 0.35f, glow, ColliderMode.None, 2f);
+            Greybox.Prim(PrimitiveType.Sphere, "Eye", root, new Vector3(0.45f, 0.35f, 1.15f), Vector3.one * 0.35f, glow, ColliderMode.None, 2f);
+            for (int i = 0; i < 2; i++)
+            {
+                float side = i == 0 ? -1f : 1f;
+                var arm = Greybox.Prim(PrimitiveType.Capsule, "Arm", root, new Vector3(1.5f * side, -0.4f, 0.4f),
+                    new Vector3(0.7f, 1f, 0.7f), rot, ColliderMode.None);
+                arm.transform.localRotation = Quaternion.Euler(20f, 0f, 25f * side);
+            }
+            var brute = root.gameObject.AddComponent<Brute>();
+            return brute;
+        }
+
         static Transform NewRoot(string name, Vector3 position, float hp)
         {
             var go = new GameObject(name);

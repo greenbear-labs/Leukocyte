@@ -37,7 +37,7 @@ namespace Leukocyte
                 }
                 else
                 {
-                    if (victim) victim.Hp.Damage(damage);
+                    if (victim) victim.Hp.Damage(damage, transform.position);
                     Fader.Burst(hit.point, GlobColor, 5, 0.15f, 3f);
                     Destroy(gameObject);
                     return;

@@ -63,6 +63,12 @@ namespace Leukocyte
             flash.intensity = 0f;
         }
 
+        /// <summary>Viewmodel jab used by Phagocyte Grab.</summary>
+        public void Punch()
+        {
+            kick = 2.5f;
+        }
+
         public void Refill()
         {
             Ammo = magazineSize;
@@ -132,13 +138,11 @@ namespace Leukocyte
                 if (victim && victim.team != Team.Immune && victim.Alive)
                 {
                     bool kill = victim.Hp.Current <= damage;
-                    victim.Hp.Damage(damage);
+                    victim.Hp.Damage(damage, origin);
                     var gm = GameManager.I;
-                    if (gm)
-                    {
-                        if (kill) gm.Kills++;
-                        if (gm.Hud) gm.Hud.ShowHitMarker(kill);
-                    }
+                    if (kill) KillFeed.PlayerKill(victim, "Destroyed");
+                    if (gm && gm.Hud) gm.Hud.ShowHitMarker(kill);
+                    Sfx.UI(() => kill ? Sfx.Squelch : Sfx.HitTick, kill ? 0.8f : 0.35f);
                     var germ = victim.GetComponent<Germ>();
                     Fader.Burst(hit.point, germ ? germ.BloodColor : Color.white, 2, 0.12f, 3f);
                 }
@@ -149,6 +153,7 @@ namespace Leukocyte
             }
 
             Fader.Tracer(muzzle.position, end, BoltColor);
+            Sfx.UI(() => Sfx.Shot, 0.35f, 0.1f);
             flash.intensity = 4f;
             kick = 1f;
             owner.AddRecoil(recoilDegrees);
