@@ -1,0 +1,211 @@
+using UnityEngine;
+
+namespace Leukocyte
+{
+    /// <summary>First-person controller for the Leukocyte trooper.
+    /// Slightly floaty movement, plus a gentle blood current pushing toward low Z.</summary>
+    [RequireComponent(typeof(CharacterController))]
+    public class PlayerController : MonoBehaviour
+    {
+        public float walkSpeed = 6.5f;
+        public float sprintMultiplier = 1.6f;
+        public float jumpSpeed = 6.5f;
+        public float gravity = 15f;
+        public float mouseSensitivity = 2f;
+        public Vector3 bloodCurrent = new Vector3(0f, 0f, -0.7f);
+
+        public Health Hp { get; private set; }
+        public Camera Cam { get; private set; }
+        public EnzymeRifle Rifle { get; private set; }
+        public PlayerAbilities Abilities { get; private set; }
+        public ClassProfile Class { get; private set; }
+
+        float baseWalkSpeed = -1f;
+        bool freshSpawn = true;
+
+        /// <summary>Called on firing or taking damage; after that, class changes wait for the next deploy.</summary>
+        public void MarkEngaged() { freshSpawn = false; }
+        public Vector3 Velocity { get; private set; }
+        public bool Sprinting { get; private set; }
+        public bool InputEnabled => GameInput.Active;
+
+        static readonly Vector3 EyeOffset = new Vector3(0f, 1.6f, 0f);
+
+        CharacterController cc;
+        Vector3 momentum;
+        float verticalSpeed;
+        float pitch;
+        float trauma;
+        float baseFov = -1f;
+
+        public void Init(Camera cam)
+        {
+            Cam = cam;
+            cc = GetComponent<CharacterController>();
+            Hp = GetComponent<Health>();
+            Rifle = gameObject.AddComponent<EnzymeRifle>();
+            Class = ClassProfile.Get(ClassProfile.Selected);
+            Rifle.Init(this, cam, Class.weapon);
+            Abilities = gameObject.AddComponent<PlayerAbilities>();
+            Abilities.Init(this);
+            ApplyClass(Class);
+            Hp.Damaged += amount =>
+            {
+                freshSpawn = false;
+                AddShake(Mathf.Clamp01(amount / 30f) * 0.5f);
+                Sfx.UI(() => Sfx.Hurt, 0.8f);
+            };
+            LockCursor();
+        }
+
+        /// <summary>Switches to a class: health, speed, weapon and abilities.</summary>
+        public void ApplyClass(ClassProfile profile)
+        {
+            Class = profile;
+            if (baseWalkSpeed < 0f) baseWalkSpeed = walkSpeed;
+            walkSpeed = baseWalkSpeed * profile.speedMultiplier;
+            Hp.SetMax(profile.maxHealth);
+            if (Rifle.Profile != profile.weapon) Rifle.SetProfile(profile.weapon);
+            Abilities.Configure(profile);
+        }
+
+        public static void LockCursor()
+        {
+            GameInput.TouchPaused = false;
+            if (GameInput.TouchMode) return;
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        public static void UnlockCursor()
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
+        void Update()
+        {
+            var gm = GameManager.I;
+            if (!gm || gm.State != GameState.Playing) return;
+
+            if (!GameInput.TouchMode)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape)) UnlockCursor();
+                else if (!InputEnabled && Input.GetMouseButtonDown(0)) LockCursor();
+            }
+
+            // Cap the step so a long frame (level build, shader warm-up on WebGL) can't carry the
+            // controller through the floor in one move.
+            float dt = Mathf.Min(Time.deltaTime, 1f / 30f);
+
+            // Before your first shot or hit after deploying, you can still swap class freely.
+            if (freshSpawn && !Hp.IsDead && ClassProfile.Selected != Class.id) ApplyClass(ClassProfile.Get(ClassProfile.Selected));
+
+            if (Hp.IsDead)
+            {
+                // Slump to the floor while waiting to respawn.
+                Cam.transform.localPosition = Vector3.Lerp(Cam.transform.localPosition, new Vector3(0f, 0.35f, 0f), 4f * dt);
+                Cam.transform.localRotation = Quaternion.Slerp(Cam.transform.localRotation, Quaternion.Euler(pitch, 0f, 35f), 4f * dt);
+                return;
+            }
+
+            if (InputEnabled)
+            {
+                float sens = mouseSensitivity * (Rifle.Zoomed ? 0.35f : 1f);
+                Vector2 look = GameInput.Look;
+                transform.Rotate(0f, look.x * sens, 0f);
+                pitch = Mathf.Clamp(pitch - look.y * sens, -85f, 85f);
+            }
+            // Screen shake and sprint field of view.
+            trauma = Mathf.Max(0f, trauma - 1.5f * dt);
+            float shake = trauma * trauma;
+            Cam.transform.localRotation = Quaternion.Euler(pitch + Noise(1) * 4f * shake, Noise(2) * 4f * shake, Noise(3) * 6f * shake);
+            Cam.transform.localPosition = EyeOffset + new Vector3(Noise(4), Noise(5), 0f) * 0.12f * shake;
+            if (baseFov < 0f) baseFov = Cam.fieldOfView;
+            float fov = Rifle.Zoomed ? Rifle.Profile.zoomFov : Sprinting ? baseFov + 8f : baseFov;
+            Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, fov, (Rifle.Zoomed ? 14f : 8f) * dt);
+
+            Vector3 input = Vector3.zero;
+            if (InputEnabled)
+            {
+                Vector2 m = GameInput.Move;
+                input = new Vector3(m.x, 0f, m.y);
+            }
+
+            Sprinting = GameInput.Sprint && input.z > 0.1f;
+            Vector3 wish = transform.TransformDirection(input) * walkSpeed * (Sprinting ? sprintMultiplier : 1f);
+
+            bool grounded = cc.isGrounded;
+            if (grounded) lastGrounded = transform.position;
+            else if (transform.position.y < FallLimit) { Recover(); return; }
+            float accel = (grounded ? 12f : 4f) * walkSpeed;
+            momentum = Vector3.MoveTowards(momentum, wish, accel * dt);
+
+            if (grounded)
+            {
+                if (verticalSpeed < 0f) verticalSpeed = -2f;
+                if (InputEnabled && GameInput.Jump) verticalSpeed = jumpSpeed;
+            }
+            verticalSpeed -= gravity * dt;
+
+            var flags = cc.Move((momentum + bloodCurrent + Vector3.up * verticalSpeed) * dt);
+            if ((flags & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
+            Velocity = cc.velocity;
+        }
+
+        public void AddShake(float amount)
+        {
+            trauma = Mathf.Clamp01(trauma + amount);
+        }
+
+        static float Noise(int seed) => Mathf.PerlinNoise(seed * 13.7f, Time.time * 25f) * 2f - 1f;
+
+        public void AddRecoil(float degrees)
+        {
+            pitch = Mathf.Clamp(pitch - degrees, -85f, 85f);
+        }
+
+        const float FallLimit = -6f;
+        Vector3 lastGrounded;
+        bool hasSpawnPoint;
+        Vector3 spawnPosition;
+
+        /// <summary>Safety net: if the player ever ends up under the floor, put them back on solid
+        /// ground instead of letting them fall forever.</summary>
+        void Recover()
+        {
+            Vector3 to = lastGrounded != Vector3.zero ? lastGrounded : hasSpawnPoint ? spawnPosition : new Vector3(transform.position.x, 0f, transform.position.z);
+            cc.enabled = false;
+            transform.position = to + Vector3.up * 0.5f;
+            cc.enabled = true;
+            Physics.SyncTransforms();
+            verticalSpeed = 0f;
+            momentum = Vector3.zero;
+        }
+
+        public void Respawn(Vector3 position) => Respawn(position, Quaternion.identity);
+
+        public void Respawn(Vector3 position, Quaternion facing)
+        {
+            cc.enabled = false;
+            transform.SetPositionAndRotation(position, facing);
+            cc.enabled = true;
+            Physics.SyncTransforms();
+            spawnPosition = position;
+            hasSpawnPoint = true;
+            lastGrounded = position;
+            pitch = 0f;
+            verticalSpeed = 0f;
+            momentum = Vector3.zero;
+            Cam.transform.localPosition = EyeOffset;
+            Cam.transform.localRotation = Quaternion.identity;
+            var chosen = ClassProfile.Get(ClassProfile.Selected);
+            if (chosen != Class) ApplyClass(chosen);
+            freshSpawn = true;
+            Hp.ResetHealth();
+            Rifle.Refill();
+            Abilities.Refill();
+            trauma = 0f;
+        }
+    }
+}
