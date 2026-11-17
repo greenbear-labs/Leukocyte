@@ -1,0 +1,13 @@
+<!-- Keeps engine classes the game only creates indirectly. Levels are built from
+     GameObject.CreatePrimitive, which adds Box/Sphere/Capsule colliders natively; nothing in
+     scripts or scenes references them, so WebGL engine-code stripping removed them and the
+     ground had no collision (players fell through the floor in the browser). -->
+<linker>
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.BoxCollider" preserve="all"/>
+    <type fullname="UnityEngine.SphereCollider" preserve="all"/>
+    <type fullname="UnityEngine.CapsuleCollider" preserve="all"/>
+    <type fullname="UnityEngine.MeshCollider" preserve="all"/>
+    <type fullname="UnityEngine.CharacterController" preserve="all"/>
+  </assembly>
+</linker>
